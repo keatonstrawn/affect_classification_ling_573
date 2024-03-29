@@ -1,0 +1,7 @@
+This is a test file to ensure that we all have proper permissions to contribute to the repo.
+
+Everyone should make a new branch and check it out, make a change to this test file and
+commit it to the branch, then submit a PR with that change to merge the branch back into main.
+Once others have confirmed that they can review the PR merge the branches.
+
+Lindsay's change: added this line of text.
