@@ -2,7 +2,8 @@
 ## LING 573
 ## Teammates:
 * [Ben Cote](https://github.com/bpcot23)
-* [Lindsay Skinner](https://github.com/skinnel)
 * [Madhav Kashyap](https://github.com/madhavmk)
-* [Person 4](https://github.com/something)
+* [Lindsay Skinner](https://github.com/skinnel)
+* [Keaton Strawn](https://github.com/keatonstrawn)
+* [Allan Tsai](https://github.com/chooshiba )
 
