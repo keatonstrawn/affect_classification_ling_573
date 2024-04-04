@@ -1,0 +1,11 @@
+name: Affect
+channels:
+  - anaconda
+  - conda-forge
+dependencies:
+  - python=3.9
+  - numpy
+  - pandas
+  - nltk
+  - scikit-learn
+  - os
