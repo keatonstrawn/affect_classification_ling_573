@@ -6,7 +6,7 @@ import pandas as pd
 
 from typing import Optional, Dict
 
-# Define class to handl data processing
+# Define class to handle data processing
 class DataProcessor:
     def __init__(self):
         """Processes the raw HateEval data for use in hate speech detection tasks A and B, as specified in SemEval 2019

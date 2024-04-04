@@ -21,7 +21,7 @@ The DataProcessor cleans the text field in the raw data. It does so by making th
 6. Replacing '@user' references with the string 'user' and storing the original user ids in a separate list
 
 The output will be a pandas dataframe with the following fields:
-id: int
+(index) id: int
 cleaned_text: str
 HS: binary (0, 1)
 TR: binary (0, 1)
