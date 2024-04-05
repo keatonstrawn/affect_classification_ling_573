@@ -3,8 +3,11 @@
 
 # Libraries
 import pandas as pd
+import unicodedata
+import emoji
 
 from typing import Optional, Dict, Tuple, List
+
 
 # Define class to handle data processing
 class DataProcessor:
@@ -178,8 +181,35 @@ class DataProcessor:
 
         return cleaned_tweet, user_list
 
-    # Separate emojis or replace them in tweet with word? --> replace them with name/word
-    # What about @ references? --> replace with USER and store actual string(s) in list in separate column
+    def _replace_emojis(self, tweet: str, language: str = 'English') -> str:
+        """Replaces any emojis that appear in the text with their (English) name.
+
+        Arguments:
+        ----------
+        tweet
+            The tweet text.
+        language
+            The primary language that the tweet is written in. 'en' specified English and 'es' specifies Spanish.
+
+        Returns:
+        --------
+        the tweet text with all emojis replaced with their names
+        """
+
+        demojized_tweet = emoji.demojize(tweet, language=language)
+        tweet_list = demojized_tweet.split(':')
+        cleaned_tweet_list = []
+        for w in tweet_list:
+            w = w.replace('_', ' ')
+            cleaned_tweet_list.append(w)
+        cleaned_tweet = ' '.join(cleaned_tweet_list)
+
+        return cleaned_tweet
+
+
+
+
+
     # lowercase everything, but first get % of string that is capitalized and store in separate column
     # remove punctuation, but first get counts of common punctuation symbols (!, $, ?, ., *)
     # any way to map slang terms and masked-swear words (e.g. f***) to actual word?
