@@ -1,0 +1,21 @@
+{
+  "document_processing": {
+      "data_ingested": {
+          "training": true,
+          "devtest": true,
+          "evaltest": true
+      },
+    "input_tsv_file": {
+        "training": # will fill in with path ,
+        "devtest": # will fill in with path ,
+        "evaltest": # will fill in with path ,
+    },
+    "output_dir": {
+        "training": "data/training",
+        "devtest": "data/devtest",
+        "evaltest": "data/evaltest"
+    }
+  },
+  "model": {
+  }
+}
