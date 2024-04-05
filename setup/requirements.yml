@@ -11,3 +11,4 @@ dependencies:
   - os
   - pytorch=1.12.1  # Add PyTorch to ensure compatibility with the transformers library
   - transformers=4.17.0  # This will attempt to get the latest version available on conda channels
+  - emoji
