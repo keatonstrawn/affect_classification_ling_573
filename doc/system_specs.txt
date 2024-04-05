@@ -12,6 +12,7 @@ not (0) the tweet is classified as hate speech; TR is a binary tag that indicate
 individual (1) or a general group (0); AG is a binary tag that indicates whether (1) or not (0) the tweet is aggressive.
 
 The DataProcessor cleans the text field in the raw data. It does so by making the following changes:
+0. Adding a column to indicate the primary language the tweet is written in
 1. Removing the URLs
 2. Separating the hashtags from the text and storing them in a separate list
 *3. Replacing slang and abbreviated terms with standard English/Spanish (if possible, need to check which resources are
@@ -22,17 +23,23 @@ The DataProcessor cleans the text field in the raw data. It does so by making th
 
 The output will be a pandas dataframe with the following fields:
 (index) id: int
+raw_test: str
 cleaned_text: str
+language: str
 HS: binary (0, 1)
 TR: binary (0, 1)
 AG: binary (0, 1)
 hashtags: List[str]
-percent_capitals: float
-exclamation_count: int
-question_mark_count: int
-dollar_symbol_count: int
-asteriks_count: int
 user_ids: List[str]
+percent_capitals: float
+!_count: int
+?_count: int
+$_count: int
+*_count: int
+
+
+Note that the [symbol]_count columns above can change, based on the specified symbol list. The columns shown here are
+the symbols that are selected by default.
 
 
 Feature Engineering (put_module_reference_here):

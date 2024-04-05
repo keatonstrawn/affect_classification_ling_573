@@ -7,6 +7,7 @@ import emoji
 import pandas as pd
 
 from typing import Optional, Dict, Tuple, List
+from copy import deepcopy
 
 
 # Define class to handle data processing
@@ -32,9 +33,9 @@ class DataProcessor:
         self.raw_data: Dict[str: pd.DataFrame] = None
         self.processed_data: Dict[str: pd.DataFrame] = None
 
-    def load_data(self, load_from_disk: bool = False, filepath: Optional[str] = None, train_file: Optional[str] = None,
-                  validation_file: Optional[str] = None, test_file: Optional[str] = None,
-                  language: Optional[str] = 'English') -> None:
+    def load_data(self, load_from_disk: bool = False, language: str = 'English', filepath: Optional[str] = None,
+                  train_file: Optional[str] = None, validation_file: Optional[str] = None,
+                  test_file: Optional[str] = None) -> None:
         """Loads the raw data into the data processor.
 
         Arguments:
@@ -53,8 +54,7 @@ class DataProcessor:
                 The name of the file containing the test data. If no name is provided then this is assumed to be
                 test_en.tsv.
             language
-                The language data to be downloaded, if not loading data from disk. Can be 'english', 'spanish', or
-                'all'.
+                The language data to be downloaded. Can be 'english' or 'spanish' or 'both'.
         """
 
         if load_from_disk:
@@ -72,6 +72,15 @@ class DataProcessor:
             raw_val_df = pd.read_csv(f'{filepath}/{validation_file}', sep='\t', header=0)
             raw_test_df = pd.read_csv(f'{filepath}/{test_file}', sep='\t', header=0)
 
+            # Add column specifying language:
+            if language == 'english':
+                lang_id = 'en'
+            elif language == 'spanish':
+                lang_id = 'es'
+            raw_train_df = raw_train_df.assign(language=lang_id)
+            raw_val_df = raw_val_df.assign(language=lang_id)
+            raw_test_df = raw_test_df.assign(language=lang_id)
+
         else:
 
             # Load English data only
@@ -84,6 +93,11 @@ class DataProcessor:
                 raw_val_df = pd.read_csv(val_url, sep='\t', header=0)
                 raw_test_df = pd.read_csv(test_url, sep='\t', header=0)
 
+                # Add column specifying language:
+                raw_train_df = raw_train_df.assign(language='en')
+                raw_val_df = raw_val_df.assign(language='en')
+                raw_test_df = raw_test_df.assign(language='en')
+
             # Load Spanish data only
             elif language == 'spanish':
                 train_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/train_es.tsv'
@@ -93,6 +107,11 @@ class DataProcessor:
                 raw_train_df = pd.read_csv(train_url, sep='\t', header=0)
                 raw_val_df = pd.read_csv(val_url, sep='\t', header=0)
                 raw_test_df = pd.read_csv(test_url, sep='\t', header=0)
+
+                # Add column specifying language:
+                raw_train_df = raw_train_df.assign(language='es')
+                raw_val_df = raw_val_df.assign(language='es')
+                raw_test_df = raw_test_df.assign(language='es')
 
             # Load both English and Spanish data and concatenate the dataframes
             else:
@@ -105,6 +124,11 @@ class DataProcessor:
                 en_val_df = pd.read_csv(val_en_url, sep='\t', header=0)
                 en_test_df = pd.read_csv(test_en_url, sep='\t', header=0)
 
+                # Add column specifying language:
+                en_train_df = en_train_df.assign(language='en')
+                en_val_df = en_val_df.assign(language='en')
+                en_test_df = en_test_df.assign(language='en')
+
                 # Load Spanish data
                 train_es_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/train_es.tsv'
                 val_es_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/dev_es.tsv'
@@ -113,6 +137,11 @@ class DataProcessor:
                 es_train_df = pd.read_csv(train_es_url, sep='\t', header=0)
                 es_val_df = pd.read_csv(val_es_url, sep='\t', header=0)
                 es_test_df = pd.read_csv(test_es_url, sep='\t', header=0)
+
+                # Add column specifying language:
+                es_train_df = es_train_df.assign(language='es')
+                es_val_df = es_val_df.assign(language='es')
+                es_test_df = es_test_df.assign(language='es')
 
                 # Concatenate the dataframes
                 raw_train_df = pd.concat([en_train_df, es_train_df])
@@ -181,7 +210,7 @@ class DataProcessor:
 
         return cleaned_tweet, user_list
 
-    def _replace_emojis(self, tweet: str, language: str = 'English') -> str:
+    def _replace_emojis(self, tweet: str, language: str = 'en') -> str:
         """Replaces any emojis that appear in the text with their (English) name.
 
         Arguments:
@@ -206,8 +235,7 @@ class DataProcessor:
 
         return cleaned_tweet
 
-    def _remove_and_count_punctuation(self, tweet: str, symbol_list: List[str] = ('!', '?', '$', '*')
-                                      ) -> Tuple[str, dict]:
+    def _remove_and_count_punctuation(self, tweet: str, symbol_list: Optional[List[str]] = None) -> Tuple[str, dict]:
         """Removes all punctuation from the tweet text and returns the count of the specified punctuation symbols.
 
         Arguments:
@@ -222,6 +250,10 @@ class DataProcessor:
         a tuple of the tweet text, with punctuation removed, and a separate dictionary of the counts for the symbols
         specified in symbol_list.
         """
+
+        # Fill in default symbols, if missing
+        if symbol_list is None:
+            symbol_list = ('!', '?', '$', '*')
 
         cleaned_tweet = ''
         symbol_counts = {s: 0 for s in symbol_list}
@@ -255,6 +287,64 @@ class DataProcessor:
         cleaned_tweet = tweet.lower()
 
         return cleaned_tweet, capital_pct
+
+    def clean_tweet(self, tweet: str, language: str, symbol_list: Optional[List[str]] = None) -> pd.DataFrame:
+        """Cleans the text of a single tweet and returns all accumulated information and cleaned text in a dataframe.
+
+        Arguments:
+        ---------
+        tweet
+            The tweet text.
+        language
+            The primary language that the tweet is written in. 'en' specified English and 'es' specifies Spanish.
+        symbol_list
+            The list of punctuation symbols for which to keep count.
+
+        Returns:
+        -------
+        A dataframe containing the cleaned tweet text, hashtag list, username list, punctuation count and percent of
+        text that was capitalized.
+        """
+
+        # Remove URls
+        cleaned_tweet = self._remove_urls(tweet)
+
+        # Separate hashtags
+        cleaned_tweet, hashtag_list = self._separate_hashtags(cleaned_tweet)
+
+        # Separate Twitter user IDs
+        cleaned_tweet, user_list = self._separate_usernames(cleaned_tweet)
+
+        # Replace emojis with names
+        cleaned_tweet = self._replace_emojis(cleaned_tweet, language)
+
+        # Get punctuation count and remove punctuation
+        cleaned_tweet, symbol_cts = self._remove_and_count_punctuation(cleaned_tweet, symbol_list)
+
+        # Get percent of the tweet that is capitalized and lowercase the tweet
+        cleaned_tweet, capital_pct = self._get_capitals_perc_and_lowercase(cleaned_tweet)
+
+        # Construct dataframe of results
+        res_df = {'cleaned_text': cleaned_tweet, 'hashtags': hashtag_list, 'user_ids': user_list,
+                  'percent_capitals': capital_pct}
+        res_df.update(symbol_cts)
+        res_df = pd.DataFrame(res_df)
+
+        return res_df
+
+    def clean_data(self, symbol_list: Optional[List[str]] = None) -> None:
+        """Cleans the raw text data and saves the cleaned data as a new column on the cleaned_data dataframe. Also
+        stores any additional data accumulated during cleaning as new columns on the cleaned_data dataframe.
+
+        Arguments:
+        ---------
+        symbol_list
+            The list of punctuation symbols for which to keep count.
+        """
+
+        # Save a copy of the raw data to the processed_data attribute
+        self.processed_data = deepcopy(self.raw_data)
+
 
 
 
