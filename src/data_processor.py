@@ -173,7 +173,7 @@ class DataProcessor:
 
         tweet_list = tweet.split()
         user_list = [w for w in tweet_list if w.startswith('@')]
-        cleaned_tweet = [w for w in tweet_list if w not in user_list]
+        cleaned_tweet = [w if w not in user_list else 'user' for w in tweet_list]
         cleaned_tweet = ' '.join(cleaned_tweet)
 
         return cleaned_tweet, user_list
