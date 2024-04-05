@@ -2,9 +2,9 @@
 """
 
 # Libraries
-import pandas as pd
-import unicodedata
+import re
 import emoji
+import pandas as pd
 
 from typing import Optional, Dict, Tuple, List
 
@@ -219,7 +219,7 @@ class DataProcessor:
 
         Returns:
         --------
-        a tuple of the tweet text, with punctuation removed , and a separate dictionary of the counts for the symbols
+        a tuple of the tweet text, with punctuation removed, and a separate dictionary of the counts for the symbols
         specified in symbol_list.
         """
 
@@ -233,11 +233,33 @@ class DataProcessor:
 
         return cleaned_tweet, symbol_counts
 
+    def _get_capitals_perc_and_lowercase(self, tweet: str) -> Tuple[str, float]:
+        """Lowercases the tweet text and returns the percentage of the alphabet characters in the tweet that were
+        capitalized.
+
+        Arguments:
+        ----------
+        tweet
+            The tweet text.
+
+        Returns:
+        --------
+        a tuple of the lower-cased tweet text and a float indicate what percentage of alphabet characters in the
+        tweet were capitalized.
+        """
+
+        capital_ct = len(re.findall(r'[A-Z]', tweet))
+        alpha_ct = len(re.findall(r'[A-Za-z]', tweet))
+        capital_pct = capital_ct / alpha_ct
+
+        cleaned_tweet = tweet.lower()
+
+        return cleaned_tweet, capital_pct
 
 
-    # lowercase everything, but first get % of string that is capitalized and store in separate column
-    # remove punctuation, but first get counts of common punctuation symbols (!, $, ?, ., *)
-    # any way to map slang terms and masked-swear words (e.g. f***) to actual word?
+
+    # TODO: Is there any way to map slang terms and masked-swear words (e.g. f***) to actual word that doesn't involve
+    #  compiling our own dictionary of terms?
 
 
 
