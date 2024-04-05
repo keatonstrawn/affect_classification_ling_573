@@ -206,7 +206,32 @@ class DataProcessor:
 
         return cleaned_tweet
 
+    def _remove_and_count_punctuation(self, tweet: str, symbol_list: List[str] = ('!', '?', '$', '*')
+                                      ) -> Tuple[str, dict]:
+        """Removes all punctuation from the tweet text and returns the count of the specified punctuation symbols.
 
+        Arguments:
+        ----------
+        tweet
+            The tweet text.
+        symbol_list
+            The list of punctuation symbols for which to keep count.
+
+        Returns:
+        --------
+        a tuple of the tweet text, with punctuation removed , and a separate dictionary of the counts for the symbols
+        specified in symbol_list.
+        """
+
+        cleaned_tweet = ''
+        symbol_counts = {s: 0 for s in symbol_list}
+        for char in tweet:
+            if char in symbol_list:
+                symbol_counts[char] += 1
+            else:
+                cleaned_tweet += char
+
+        return cleaned_tweet, symbol_counts
 
 
 
