@@ -30,7 +30,7 @@ class DataProcessor:
         self.processed_data: Dict[str: pd.DataFrame] = None
 
     def load_data(self, load_from_disk: bool = False, filepath: Optional[str] = None, train_file: Optional[str] = None,
-                 validation_file: Optional[str] = None, test_file: Optional[str] = None,
+                  validation_file: Optional[str] = None, test_file: Optional[str] = None,
                   language: Optional[str] = 'English') -> None:
         """Loads the raw data into the data processor.
 
@@ -131,7 +131,12 @@ class DataProcessor:
         --------
         tweet text with all urls removed
         """
-        return tweet
+        tweet_list = tweet.split()
+        url_list = [w for w in tweet_list if w.startswith('http')]
+        cleaned_tweet = [w for w in tweet_list if w not in url_list]
+        cleaned_tweet = ' '.join(cleaned_tweet)
+
+        return cleaned_tweet
 
     def _separate_hashtags(self, tweet: str):
         """Separates hashtags from the tweet text and creates a list of all included hashtags.
@@ -145,13 +150,18 @@ class DataProcessor:
         --------
         a tuple of the tweet text, with all hashtags removed, and a separate list of the affiliated hashtags
         """
-        return tweet, []
+
+        tweet_list = tweet.split()
+        hashtag_list = [w for w in tweet_list if w.startswith('#')]
+        cleaned_tweet = [w for w in tweet_list if w not in hashtag_list]
+        cleaned_tweet = ' '.join(cleaned_tweet)
+        return cleaned_tweet, hashtag_list
 
     # Separate emojis or replace them in tweet with word? --> replace them with name/word
     # What about @ references? --> replace with USER and store actual string(s) in list in separate column
     # lowercase everything, but first get % of string that is capitalized and store in separate column
     # remove punctuation, but first get counts of common punctuation symbols (!, $, ?, ., *)
-    # anyway to map slang terms and masked-swear words (e.g. f***) to actual word?
+    # any way to map slang terms and masked-swear words (e.g. f***) to actual word?
 
 
 
