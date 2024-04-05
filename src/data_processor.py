@@ -4,7 +4,7 @@
 # Libraries
 import pandas as pd
 
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List
 
 # Define class to handle data processing
 class DataProcessor:
@@ -138,7 +138,7 @@ class DataProcessor:
 
         return cleaned_tweet
 
-    def _separate_hashtags(self, tweet: str):
+    def _separate_hashtags(self, tweet: str) -> Tuple[str, List[str]]:
         """Separates hashtags from the tweet text and creates a list of all included hashtags.
 
         Arguments:
@@ -155,7 +155,28 @@ class DataProcessor:
         hashtag_list = [w for w in tweet_list if w.startswith('#')]
         cleaned_tweet = [w for w in tweet_list if w not in hashtag_list]
         cleaned_tweet = ' '.join(cleaned_tweet)
+
         return cleaned_tweet, hashtag_list
+
+    def _separate_usernames(self, tweet:str) -> Tuple[str, List[str]]:
+        """Separates twitter usernames from the tweet text and creates a list of all referenced usernames.
+
+        Arguments:
+        ----------
+        tweet
+            The tweet text.
+
+        Returns:
+        --------
+        a tuple of the tweet text, with usernames replaced by 'user' , and a separate list of the affiliated usernames
+        """
+
+        tweet_list = tweet.split()
+        user_list = [w for w in tweet_list if w.startswith('@')]
+        cleaned_tweet = [w for w in tweet_list if w not in user_list]
+        cleaned_tweet = ' '.join(cleaned_tweet)
+
+        return cleaned_tweet, user_list
 
     # Separate emojis or replace them in tweet with word? --> replace them with name/word
     # What about @ references? --> replace with USER and store actual string(s) in list in separate column
