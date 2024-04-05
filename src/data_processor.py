@@ -89,9 +89,9 @@ class DataProcessor:
                 val_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-English-B/dev_en.tsv'
                 test_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-English-A/test_en.tsv'
 
-                raw_train_df = pd.read_csv(train_url, sep='\t', header=0)
-                raw_val_df = pd.read_csv(val_url, sep='\t', header=0)
-                raw_test_df = pd.read_csv(test_url, sep='\t', header=0)
+                raw_train_df = pd.read_csv(train_url, sep='\t', header=0, index_col='id')
+                raw_val_df = pd.read_csv(val_url, sep='\t', header=0, index_col='id')
+                raw_test_df = pd.read_csv(test_url, sep='\t', header=0, index_col='id')
 
                 # Add column specifying language:
                 raw_train_df = raw_train_df.assign(language='en')
@@ -104,9 +104,9 @@ class DataProcessor:
                 val_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/dev_es.tsv'
                 test_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-Spanish/test_es.tsv'
 
-                raw_train_df = pd.read_csv(train_url, sep='\t', header=0)
-                raw_val_df = pd.read_csv(val_url, sep='\t', header=0)
-                raw_test_df = pd.read_csv(test_url, sep='\t', header=0)
+                raw_train_df = pd.read_csv(train_url, sep='\t', header=0, index_col='id')
+                raw_val_df = pd.read_csv(val_url, sep='\t', header=0, index_col='id')
+                raw_test_df = pd.read_csv(test_url, sep='\t', header=0, index_col='id')
 
                 # Add column specifying language:
                 raw_train_df = raw_train_df.assign(language='es')
@@ -120,9 +120,9 @@ class DataProcessor:
                 val_en_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-English-B/dev_en.tsv'
                 test_en_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-English-A/test_en.tsv'
 
-                en_train_df = pd.read_csv(train_en_url, sep='\t', header=0)
-                en_val_df = pd.read_csv(val_en_url, sep='\t', header=0)
-                en_test_df = pd.read_csv(test_en_url, sep='\t', header=0)
+                en_train_df = pd.read_csv(train_en_url, sep='\t', header=0, index_col='id')
+                en_val_df = pd.read_csv(val_en_url, sep='\t', header=0, index_col='id')
+                en_test_df = pd.read_csv(test_en_url, sep='\t', header=0, index_col='id')
 
                 # Add column specifying language:
                 en_train_df = en_train_df.assign(language='en')
@@ -134,9 +134,9 @@ class DataProcessor:
                 val_es_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/dev_es.tsv'
                 test_es_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-Spanish/test_es.tsv'
 
-                es_train_df = pd.read_csv(train_es_url, sep='\t', header=0)
-                es_val_df = pd.read_csv(val_es_url, sep='\t', header=0)
-                es_test_df = pd.read_csv(test_es_url, sep='\t', header=0)
+                es_train_df = pd.read_csv(train_es_url, sep='\t', header=0, index_col='id')
+                es_val_df = pd.read_csv(val_es_url, sep='\t', header=0, index_col='id')
+                es_test_df = pd.read_csv(test_es_url, sep='\t', header=0, index_col='id')
 
                 # Add column specifying language:
                 es_train_df = es_train_df.assign(language='es')
@@ -256,16 +256,16 @@ class DataProcessor:
             symbol_list = ('!', '?', '$', '*')
 
         cleaned_tweet = ''
-        symbol_counts = {s: 0 for s in symbol_list}
+        symbol_counts = {f'{s}_count': 0 for s in symbol_list}
         for char in tweet:
             if char in symbol_list:
-                symbol_counts[char] += 1
+                symbol_counts[f'{char}_count'] += 1
             else:
                 cleaned_tweet += char
 
         return cleaned_tweet, symbol_counts
 
-    def _get_capitals_perc_and_lowercase(self, tweet: str) -> Tuple[str, float]:
+    def _get_capital_perc_and_lowercase(self, tweet: str) -> Tuple[str, float]:
         """Lowercases the tweet text and returns the percentage of the alphabet characters in the tweet that were
         capitalized.
 
@@ -342,14 +342,69 @@ class DataProcessor:
             The list of punctuation symbols for which to keep count.
         """
 
-        # Save a copy of the raw data to the processed_data attribute
-        self.processed_data = deepcopy(self.raw_data)
+        # Generate a copy of the raw data to be processed
+        raw_train = deepcopy(self.raw_data['train'])
+        raw_val = deepcopy(self.raw_data['validation'])
+        raw_test = deepcopy(self.raw_data['test'])
 
+        # Get dataframe of new, processed columns
+        processed_train_data = pd.DataFrame()
+        processed_val_data = pd.DataFrame()
+        processed_test_data = pd.DataFrame()
 
+        # Process English data
+        if 'en' in raw_train['langauge']:
+
+            # training data
+            en_raw_train = raw_train[raw_train['language'] == 'en']
+            en_processed_train = en_raw_train['text'].apply(self.clean_tweet, language='en')
+            en_processed_train = pd.concat([en_raw_train, en_processed_train], axis=1)
+            processed_train_data = pd.concat([processed_train_data, en_processed_train], axis=0)
+
+            # validation data
+            en_raw_val = raw_val[raw_val['language'] == 'en']
+            en_processed_val = en_raw_val['text'].apply(self.clean_tweet, language='en')
+            en_processed_val = pd.concat([en_raw_val, en_processed_val], axis=1)
+            processed_val_data = pd.concat([processed_val_data, en_processed_val], axis=0)
+
+            # test data
+            en_raw_test = raw_train[raw_test['language'] == 'en']
+            en_processed_test = en_raw_test['text'].apply(self.clean_tweet, language='en')
+            en_processed_test = pd.concat([en_raw_test, en_processed_test], axis=1)
+            processed_test_data = pd.concat([processed_test_data, en_processed_test], axis=0)
+
+        # Process Spanish data
+        if 'es' in raw_train['langauge']:
+
+            # training data
+            es_raw_train = raw_train[raw_train['language'] == 'es']
+            es_processed_train = es_raw_train['text'].apply(self.clean_tweet, language='es')
+            es_processed_train = pd.concat([es_raw_train, es_processed_train], axis=1)
+            processed_train_data = pd.concat([processed_train_data, es_processed_train], axis=0)
+
+            # validation data
+            es_raw_val = raw_val[raw_val['language'] == 'es']
+            es_processed_val = es_raw_val['text'].apply(self.clean_tweet, language='es')
+            es_processed_val = pd.concat([es_raw_val, es_processed_val], axis=1)
+            processed_val_data = pd.concat([processed_val_data, es_processed_val], axis=0)
+
+            # test data
+            es_raw_test = raw_train[raw_test['language'] == 'es']
+            es_processed_test = es_raw_test['text'].apply(self.clean_tweet, language='es')
+            es_processed_test = pd.concat([es_raw_test, es_processed_test], axis=1)
+            processed_test_data = pd.concat([processed_test_data, es_processed_test], axis=0)
+
+        # Rename text field so that it's clear it contains the raw, unprocessed text
+        processed_train_data.rename({'text': 'raw_text'}, inplace=True)
+        processed_val_data.rename({'text': 'raw_text'}, inplace=True)
+        processed_test_data.rename({'text': 'raw_text'}, inplace=True)
+
+        self.processed_data = {'train': processed_train_data, 'validation': processed_val_data,
+                               'test': processed_test_data}
 
 
     # TODO: Is there any way to map slang terms and masked-swear words (e.g. f***) to actual word that doesn't involve
-    #  compiling our own dictionary of terms?
+    #  compiling our own dictionary of terms? And/or is there a thesaurus of slang terms so we can use just one form?
 
 
 

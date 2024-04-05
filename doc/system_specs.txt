@@ -23,7 +23,7 @@ The DataProcessor cleans the text field in the raw data. It does so by making th
 
 The output will be a pandas dataframe with the following fields:
 (index) id: int
-raw_test: str
+raw_text: str
 cleaned_text: str
 language: str
 HS: binary (0, 1)
