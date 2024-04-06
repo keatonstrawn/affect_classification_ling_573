@@ -33,7 +33,7 @@ class DataProcessor:
         self.raw_data: Dict[str: pd.DataFrame] = None
         self.processed_data: Dict[str: pd.DataFrame] = None
 
-    def load_data(self, load_from_disk: bool = False, language: str = 'English', filepath: Optional[str] = None,
+    def load_data(self, load_from_disk: bool = False, language: str = 'english', filepath: Optional[str] = None,
                   train_file: Optional[str] = None, validation_file: Optional[str] = None,
                   test_file: Optional[str] = None) -> None:
         """Loads the raw data into the data processor.
@@ -61,16 +61,22 @@ class DataProcessor:
 
             # Ensure filepath is specified
             assert filepath is not None, 'Must specify filepath in order to load the data from disk.'
+            assert language == 'english' or language == 'spanish', "Language must be one of 'english' or 'spanish'"
 
             # Fill in filenames, if missing
-            if train_file is None: train_file = 'train_en.tsv'
-            if validation_file is None: validation_file = 'dev_en.tsv'
-            if test_file is None: test_file = 'test_en.tsv'
+            if language == 'english':
+                if train_file is None: train_file = 'train_en.tsv'
+                if validation_file is None: validation_file = 'dev_en.tsv'
+                if test_file is None: test_file = 'test_en.tsv'
+            if language == 'spanish':
+                if train_file is None: train_file = 'train_es.tsv'
+                if validation_file is None: validation_file = 'dev_es.tsv'
+                if test_file is None: test_file = 'test_es.tsv'
 
             # Load data from disk
-            raw_train_df = pd.read_csv(f'{filepath}/{train_file}', sep='\t', header=0)
-            raw_val_df = pd.read_csv(f'{filepath}/{validation_file}', sep='\t', header=0)
-            raw_test_df = pd.read_csv(f'{filepath}/{test_file}', sep='\t', header=0)
+            raw_train_df = pd.read_csv(f'{filepath}/{train_file}', sep='\t', header=0, index_col='id')
+            raw_val_df = pd.read_csv(f'{filepath}/{validation_file}', sep='\t', header=0, index_col='id')
+            raw_test_df = pd.read_csv(f'{filepath}/{test_file}', sep='\t', header=0, index_col='id')
 
             # Add column specifying language:
             if language == 'english':
@@ -256,10 +262,10 @@ class DataProcessor:
             symbol_list = ('!', '?', '$', '*')
 
         cleaned_tweet = ''
-        symbol_counts = {f'{s}_count': 0 for s in symbol_list}
+        symbol_counts = {f'{s}_count': [0] for s in symbol_list}
         for char in tweet:
             if char in symbol_list:
-                symbol_counts[f'{char}_count'] += 1
+                symbol_counts[f'{char}_count'][0] += 1
             else:
                 cleaned_tweet += char
 
@@ -315,18 +321,20 @@ class DataProcessor:
         # Separate Twitter user IDs
         cleaned_tweet, user_list = self._separate_usernames(cleaned_tweet)
 
-        # Replace emojis with names
-        cleaned_tweet = self._replace_emojis(cleaned_tweet, language)
-
         # Get punctuation count and remove punctuation
         cleaned_tweet, symbol_cts = self._remove_and_count_punctuation(cleaned_tweet, symbol_list)
 
         # Get percent of the tweet that is capitalized and lowercase the tweet
-        cleaned_tweet, capital_pct = self._get_capitals_perc_and_lowercase(cleaned_tweet)
+        cleaned_tweet, capital_pct = self._get_capital_perc_and_lowercase(cleaned_tweet)
+
+        # Replace emojis with names
+        cleaned_tweet = self._replace_emojis(cleaned_tweet, language)
+        # need to lowercase again, as some emoji names are capitalized
+        cleaned_tweet = cleaned_tweet.lower()
 
         # Construct dataframe of results
-        res_df = {'cleaned_text': cleaned_tweet, 'hashtags': hashtag_list, 'user_ids': user_list,
-                  'percent_capitals': capital_pct}
+        res_df = {'cleaned_text': [cleaned_tweet], 'hashtags': [hashtag_list], 'user_ids': [user_list],
+                  'percent_capitals': [capital_pct]}
         res_df.update(symbol_cts)
         res_df = pd.DataFrame(res_df)
 
@@ -407,8 +415,52 @@ class DataProcessor:
     #  compiling our own dictionary of terms? And/or is there a thesaurus of slang terms so we can use just one form?
 
 
-
-
 # Example of how to use the DataProcessor class
 if __name__ == '__main__':
-    2+2
+
+    # Initialize the class
+    myDP = DataProcessor()
+
+    # Load data from disk
+    myDP.load_data(load_from_disk=True, language='english', filepath='/Users/lindsayskinner/Documents/school/CLMS/573/data')
+
+    # Clean the text
+    myDP.clean_data()
+
+    # View the results
+    myDP.processed_data['train'].head()
+
+
+    # ### TEMPORARY - REMOVE ONCE TESTING FINISHED ###
+    #
+    tmp = myDP.raw_data['train'].loc[201, 'text']
+    tmp2 = myDP.raw_data['train'].loc[304, 'text']
+
+    myDP.clean_tweet(tmp, 'en')
+    myDP.clean_tweet(tmp2, 'en')
+    #
+    # # Remove URls
+    # cleaned_tweet = myDP._remove_urls(tmp)
+    #
+    # # Separate hashtags
+    # cleaned_tweet, hashtag_list = myDP._separate_hashtags(cleaned_tweet)
+    #
+    # # Separate Twitter user IDs
+    # cleaned_tweet, user_list = myDP._separate_usernames(cleaned_tweet)
+    #
+    # # Get punctuation count and remove punctuation
+    # cleaned_tweet, symbol_cts = myDP._remove_and_count_punctuation(cleaned_tweet)
+    #
+    # # Get percent of the tweet that is capitalized and lowercase the tweet
+    # cleaned_tweet, capital_pct = myDP._get_capital_perc_and_lowercase(cleaned_tweet)
+    #
+    # # Replace emojis with names
+    # cleaned_tweet = myDP._replace_emojis(cleaned_tweet, language='en')
+    # # need to lowercase again, as some emoji names are capitalized
+    # cleaned_tweet = cleaned_tweet.lower()
+    #
+    # # Construct dataframe of results
+    # res_df = {'cleaned_text': [cleaned_tweet], 'hashtags': [hashtag_list], 'user_ids': [user_list],
+    #           'percent_capitals': [capital_pct]}
+    # res_df.update(symbol_cts)
+    # res_df2 = pd.DataFrame(res_df)
