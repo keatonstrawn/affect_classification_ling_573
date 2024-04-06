@@ -24,7 +24,7 @@ To set up the project environment, follow the steps below:
 4. Run the create_env.sh script to create the conda environment (you may need to modify the path depending on whether you are using anaconda or miniconda):
    
    ```bash
-   ./create_env.sh
+   ./create_env.sh miniconda_or_anaconda_directory_path_goes_here
    ```
 6. Activate the newly created environment:
    
