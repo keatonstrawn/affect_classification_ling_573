@@ -1,5 +1,6 @@
 #!/bin/sh
-source ~/anaconda3/etc/profile.d/conda.sh
+# Example: source ~/miniconda3/etc/profile.d/conda.sh
+source $1
 conda remove -n Affect --all
 conda env create -f requirements.yml
 conda activate Affect
