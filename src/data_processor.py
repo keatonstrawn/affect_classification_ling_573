@@ -33,15 +33,12 @@ class DataProcessor:
         self.raw_data: Dict[str: pd.DataFrame] = None
         self.processed_data: Dict[str: pd.DataFrame] = None
 
-    def load_data(self, load_from_disk: bool = False, language: str = 'english', filepath: Optional[str] = None,
-                  train_file: Optional[str] = None, validation_file: Optional[str] = None,
-                  test_file: Optional[str] = None) -> None:
+    def load_data(self, language: str = 'english', filepath: Optional[str] = None, train_file: Optional[str] = None,
+                  validation_file: Optional[str] = None, test_file: Optional[str] = None) -> None:
         """Loads the raw data into the data processor.
 
         Arguments:
         ----------
-            load_from_disk
-                Indicates whether the data is to be loaded from disk (True) or downloaded from GitHub
             filepath
                 If data is to be loaded from disk, the filepath to the directory containing the data.
             train_file
@@ -57,105 +54,37 @@ class DataProcessor:
                 The language data to be downloaded. Can be 'english' or 'spanish' or 'both'.
         """
 
-        if load_from_disk:
+        # Ensure filepath is specified
+        assert filepath is not None, 'Must specify filepath in order to load the data from disk.'
+        assert language == 'english' or language == 'spanish', "Language must be one of 'english' or 'spanish'"
 
-            # Ensure filepath is specified
-            assert filepath is not None, 'Must specify filepath in order to load the data from disk.'
-            assert language == 'english' or language == 'spanish', "Language must be one of 'english' or 'spanish'"
+        # Fill in filenames, if missing
+        if language == 'english':
+            if train_file is None: train_file = 'train_en.tsv'
+            if validation_file is None: validation_file = 'dev_en.tsv'
+            # if test_file is None: test_file = 'test_en.tsv'
+        if language == 'spanish':
+            if train_file is None: train_file = 'train_es.tsv'
+            if validation_file is None: validation_file = 'dev_es.tsv'
+            # if test_file is None: test_file = 'test_es.tsv'
 
-            # Fill in filenames, if missing
-            if language == 'english':
-                if train_file is None: train_file = 'train_en.tsv'
-                if validation_file is None: validation_file = 'dev_en.tsv'
-                if test_file is None: test_file = 'test_en.tsv'
-            if language == 'spanish':
-                if train_file is None: train_file = 'train_es.tsv'
-                if validation_file is None: validation_file = 'dev_es.tsv'
-                if test_file is None: test_file = 'test_es.tsv'
+        # Load data from disk
+        raw_train_df = pd.read_csv(f'{filepath}/{train_file}', sep='\t', header=0, index_col='id')
+        raw_val_df = pd.read_csv(f'{filepath}/{validation_file}', sep='\t', header=0, index_col='id')
+        # raw_test_df = pd.read_csv(f'{filepath}/{test_file}', sep='\t', header=0, index_col='id')
 
-            # Load data from disk
-            raw_train_df = pd.read_csv(f'{filepath}/{train_file}', sep='\t', header=0, index_col='id')
-            raw_val_df = pd.read_csv(f'{filepath}/{validation_file}', sep='\t', header=0, index_col='id')
-            raw_test_df = pd.read_csv(f'{filepath}/{test_file}', sep='\t', header=0, index_col='id')
-
-            # Add column specifying language:
-            if language == 'english':
-                lang_id = 'en'
-            elif language == 'spanish':
-                lang_id = 'es'
-            raw_train_df = raw_train_df.assign(language=lang_id)
-            raw_val_df = raw_val_df.assign(language=lang_id)
-            raw_test_df = raw_test_df.assign(language=lang_id)
-
-        else:
-
-            # Load English data only
-            if language == 'english':
-                train_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-English-B/train_en.tsv'
-                val_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-English-B/dev_en.tsv'
-                test_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-English-A/test_en.tsv'
-
-                raw_train_df = pd.read_csv(train_url, sep='\t', header=0, index_col='id')
-                raw_val_df = pd.read_csv(val_url, sep='\t', header=0, index_col='id')
-                raw_test_df = pd.read_csv(test_url, sep='\t', header=0, index_col='id')
-
-                # Add column specifying language:
-                raw_train_df = raw_train_df.assign(language='en')
-                raw_val_df = raw_val_df.assign(language='en')
-                raw_test_df = raw_test_df.assign(language='en')
-
-            # Load Spanish data only
-            elif language == 'spanish':
-                train_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/train_es.tsv'
-                val_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/dev_es.tsv'
-                test_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-Spanish/test_es.tsv'
-
-                raw_train_df = pd.read_csv(train_url, sep='\t', header=0, index_col='id')
-                raw_val_df = pd.read_csv(val_url, sep='\t', header=0, index_col='id')
-                raw_test_df = pd.read_csv(test_url, sep='\t', header=0, index_col='id')
-
-                # Add column specifying language:
-                raw_train_df = raw_train_df.assign(language='es')
-                raw_val_df = raw_val_df.assign(language='es')
-                raw_test_df = raw_test_df.assign(language='es')
-
-            # Load both English and Spanish data and concatenate the dataframes
-            else:
-                # Load English data
-                train_en_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-English-B/train_en.tsv'
-                val_en_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-English-B/dev_en.tsv'
-                test_en_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-English-A/test_en.tsv'
-
-                en_train_df = pd.read_csv(train_en_url, sep='\t', header=0, index_col='id')
-                en_val_df = pd.read_csv(val_en_url, sep='\t', header=0, index_col='id')
-                en_test_df = pd.read_csv(test_en_url, sep='\t', header=0, index_col='id')
-
-                # Add column specifying language:
-                en_train_df = en_train_df.assign(language='en')
-                en_val_df = en_val_df.assign(language='en')
-                en_test_df = en_test_df.assign(language='en')
-
-                # Load Spanish data
-                train_es_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/train_es.tsv'
-                val_es_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%232%20Development-Spanish-B/dev_es.tsv'
-                test_es_url = 'https://github.com/cicl2018/HateEvalTeam/blob/master/Data%20Files/Data%20Files/%233%20Evaluation-Spanish/test_es.tsv'
-
-                es_train_df = pd.read_csv(train_es_url, sep='\t', header=0, index_col='id')
-                es_val_df = pd.read_csv(val_es_url, sep='\t', header=0, index_col='id')
-                es_test_df = pd.read_csv(test_es_url, sep='\t', header=0, index_col='id')
-
-                # Add column specifying language:
-                es_train_df = es_train_df.assign(language='es')
-                es_val_df = es_val_df.assign(language='es')
-                es_test_df = es_test_df.assign(language='es')
-
-                # Concatenate the dataframes
-                raw_train_df = pd.concat([en_train_df, es_train_df])
-                raw_val_df = pd.concat([en_val_df, es_val_df])
-                raw_test_df = pd.concat([en_test_df, es_test_df])
+        # Add column specifying language:
+        if language == 'english':
+            lang_id = 'en'
+        elif language == 'spanish':
+            lang_id = 'es'
+        raw_train_df = raw_train_df.assign(language=lang_id)
+        raw_val_df = raw_val_df.assign(language=lang_id)
+        # raw_test_df = raw_test_df.assign(language=lang_id)
 
         # Save raw data
-        self.raw_data = {'train': raw_train_df, 'validation': raw_val_df, 'test': raw_test_df}
+        # self.raw_data = {'train': raw_train_df, 'validation': raw_val_df, 'test': raw_test_df}
+        self.raw_data = {'train': raw_train_df, 'validation': raw_val_df}
 
     def _remove_urls(self, tweet: str) -> str:
         """Removes urls from the text of a particular tweet.
@@ -288,7 +217,10 @@ class DataProcessor:
 
         capital_ct = len(re.findall(r'[A-Z]', tweet))
         alpha_ct = len(re.findall(r'[A-Za-z]', tweet))
-        capital_pct = capital_ct / alpha_ct
+        if alpha_ct > 0:
+            capital_pct = capital_ct / alpha_ct
+        else:
+            capital_pct = 0
 
         cleaned_tweet = tweet.lower()
 
@@ -350,65 +282,87 @@ class DataProcessor:
             The list of punctuation symbols for which to keep count.
         """
 
+        # Initialize processed data dictionary
+        self.processed_data = {}
+
         # Generate a copy of the raw data to be processed
         raw_train = deepcopy(self.raw_data['train'])
         raw_val = deepcopy(self.raw_data['validation'])
-        raw_test = deepcopy(self.raw_data['test'])
+        # raw_test = deepcopy(self.raw_data['test'])
 
         # Get dataframe of new, processed columns
         processed_train_data = pd.DataFrame()
         processed_val_data = pd.DataFrame()
-        processed_test_data = pd.DataFrame()
+        # processed_test_data = pd.DataFrame()
 
         # Process English data
-        if 'en' in raw_train['langauge']:
+        if 'en' in raw_train['language'].values:
 
             # training data
             en_raw_train = raw_train[raw_train['language'] == 'en']
             en_processed_train = en_raw_train['text'].apply(self.clean_tweet, language='en')
-            en_processed_train = pd.concat([en_raw_train, en_processed_train], axis=1)
+            en_train_ind = en_processed_train.index
+            en_processed_train = pd.concat(en_processed_train.tolist())
+            en_processed_train.set_index(en_train_ind, inplace=True)
+            en_processed_train = pd.concat([en_raw_train, en_processed_train], axis=1, join='inner')
             processed_train_data = pd.concat([processed_train_data, en_processed_train], axis=0)
 
             # validation data
             en_raw_val = raw_val[raw_val['language'] == 'en']
             en_processed_val = en_raw_val['text'].apply(self.clean_tweet, language='en')
-            en_processed_val = pd.concat([en_raw_val, en_processed_val], axis=1)
+            en_val_ind = en_processed_val.index
+            en_processed_val = pd.concat(en_processed_val.tolist())
+            en_processed_val.set_index(en_val_ind, inplace=True)
+            en_processed_val = pd.concat([en_raw_val, en_processed_val], axis=1, join='inner')
             processed_val_data = pd.concat([processed_val_data, en_processed_val], axis=0)
 
-            # test data
-            en_raw_test = raw_train[raw_test['language'] == 'en']
-            en_processed_test = en_raw_test['text'].apply(self.clean_tweet, language='en')
-            en_processed_test = pd.concat([en_raw_test, en_processed_test], axis=1)
-            processed_test_data = pd.concat([processed_test_data, en_processed_test], axis=0)
+            # # test data
+            # en_raw_test = raw_train[raw_test['language'] == 'en']
+            # en_processed_test = en_raw_test['text'].apply(self.clean_tweet, language='en')
+            # en_test_ind = en_processed_test.index
+            # en_processed_test = pd.concat(en_processed_test.tolist())
+            # en_processed_test.set_index(en_test_ind, inplace=True)
+            # en_processed_test = pd.concat([en_raw_test, en_processed_test], axis=1, join='inner')
+            # processed_test_data = pd.concat([processed_test_data, en_processed_test], axis=0)
 
         # Process Spanish data
-        if 'es' in raw_train['langauge']:
+        if 'es' in raw_train['language'].values:
 
             # training data
             es_raw_train = raw_train[raw_train['language'] == 'es']
             es_processed_train = es_raw_train['text'].apply(self.clean_tweet, language='es')
-            es_processed_train = pd.concat([es_raw_train, es_processed_train], axis=1)
+            es_train_ind = es_processed_train.index
+            es_processed_train = pd.concat(es_processed_train.tolist())
+            es_processed_train.set_index(es_train_ind, inplace=True)
+            es_processed_train = pd.concat([es_raw_train, es_processed_train], axis=1, join='inner')
             processed_train_data = pd.concat([processed_train_data, es_processed_train], axis=0)
 
             # validation data
             es_raw_val = raw_val[raw_val['language'] == 'es']
             es_processed_val = es_raw_val['text'].apply(self.clean_tweet, language='es')
-            es_processed_val = pd.concat([es_raw_val, es_processed_val], axis=1)
+            es_val_ind = es_processed_val.index
+            es_processed_val = pd.concat(es_processed_val.tolist())
+            es_processed_val.set_index(es_val_ind, inplace=True)
+            es_processed_val = pd.concat([es_raw_val, es_processed_val], axis=1, join='inner')
             processed_val_data = pd.concat([processed_val_data, es_processed_val], axis=0)
 
-            # test data
-            es_raw_test = raw_train[raw_test['language'] == 'es']
-            es_processed_test = es_raw_test['text'].apply(self.clean_tweet, language='es')
-            es_processed_test = pd.concat([es_raw_test, es_processed_test], axis=1)
-            processed_test_data = pd.concat([processed_test_data, es_processed_test], axis=0)
+            # # test data
+            # es_raw_test = raw_train[raw_test['language'] == 'es']
+            # es_processed_test = es_raw_test['text'].apply(self.clean_tweet, language='es')
+            # es_test_ind = es_processed_test.index
+            # es_processed_test = pd.concat(es_processed_test.tolist())
+            # es_processed_test.set_index(es_test_ind, inplace=True)
+            # es_processed_test = pd.concat([es_raw_test, es_processed_test], axis=1, join='inner')
+            # processed_test_data = pd.concat([processed_test_data, es_processed_test], axis=0)
 
         # Rename text field so that it's clear it contains the raw, unprocessed text
-        processed_train_data.rename({'text': 'raw_text'}, inplace=True)
-        processed_val_data.rename({'text': 'raw_text'}, inplace=True)
-        processed_test_data.rename({'text': 'raw_text'}, inplace=True)
+        processed_train_data.rename({'text': 'raw_text'}, axis=1, inplace=True)
+        processed_val_data.rename({'text': 'raw_text'}, axis=1, inplace=True)
+        #processed_test_data.rename({'text': 'raw_text'}, axis=1, inplace=True)
 
-        self.processed_data = {'train': processed_train_data, 'validation': processed_val_data,
-                               'test': processed_test_data}
+        # self.processed_data = {'train': processed_train_data, 'validation': processed_val_data,
+        #                        'test': processed_test_data}
+        self.processed_data = {'train': processed_train_data, 'validation': processed_val_data}
 
 
     # TODO: Is there any way to map slang terms and masked-swear words (e.g. f***) to actual word that doesn't involve
@@ -422,45 +376,11 @@ if __name__ == '__main__':
     myDP = DataProcessor()
 
     # Load data from disk
-    myDP.load_data(load_from_disk=True, language='english', filepath='/Users/lindsayskinner/Documents/school/CLMS/573/data')
+    myDP.load_data(language='english', filepath='/put/data/directory/filepath/here')
 
     # Clean the text
     myDP.clean_data()
 
-    # View the results
+    # View a sample of the results
     myDP.processed_data['train'].head()
-
-
-    # ### TEMPORARY - REMOVE ONCE TESTING FINISHED ###
-    #
-    tmp = myDP.raw_data['train'].loc[201, 'text']
-    tmp2 = myDP.raw_data['train'].loc[304, 'text']
-
-    myDP.clean_tweet(tmp, 'en')
-    myDP.clean_tweet(tmp2, 'en')
-    #
-    # # Remove URls
-    # cleaned_tweet = myDP._remove_urls(tmp)
-    #
-    # # Separate hashtags
-    # cleaned_tweet, hashtag_list = myDP._separate_hashtags(cleaned_tweet)
-    #
-    # # Separate Twitter user IDs
-    # cleaned_tweet, user_list = myDP._separate_usernames(cleaned_tweet)
-    #
-    # # Get punctuation count and remove punctuation
-    # cleaned_tweet, symbol_cts = myDP._remove_and_count_punctuation(cleaned_tweet)
-    #
-    # # Get percent of the tweet that is capitalized and lowercase the tweet
-    # cleaned_tweet, capital_pct = myDP._get_capital_perc_and_lowercase(cleaned_tweet)
-    #
-    # # Replace emojis with names
-    # cleaned_tweet = myDP._replace_emojis(cleaned_tweet, language='en')
-    # # need to lowercase again, as some emoji names are capitalized
-    # cleaned_tweet = cleaned_tweet.lower()
-    #
-    # # Construct dataframe of results
-    # res_df = {'cleaned_text': [cleaned_tweet], 'hashtags': [hashtag_list], 'user_ids': [user_list],
-    #           'percent_capitals': [capital_pct]}
-    # res_df.update(symbol_cts)
-    # res_df2 = pd.DataFrame(res_df)
+    myDP.processed_data['validation'].head()
