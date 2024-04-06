@@ -29,5 +29,5 @@ To set up the project environment, follow the steps below:
 6. Activate the newly created environment:
    
    ```bash
-   conda activate Summary
+   conda activate Affect
    ```
