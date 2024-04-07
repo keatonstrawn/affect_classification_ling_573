@@ -15,13 +15,14 @@ The DataProcessor cleans the text field in the raw data. It does so by making th
 0. Adding a column to indicate the primary language the tweet is written in
 1. Removing the URLs
 2. Separating the hashtags from the text and storing them in a separate list
-*3. Replacing slang and abbreviated terms with standard English/Spanish (if possible, need to check which resources are
+*3. Replacing slang and abbreviated terms with standard English/Spanish (If possible, need to check which resources are
     available to do this.)
 4. Determining what percentage of the text is capital letters and storing that value, before lowercasing the text
 5. Saving the counts of common punctuation symbols (!, ?, $, *) before removing punctuation from the text
 6. Replacing '@user' references with the string 'user' and storing the original user ids in a separate list
 
 The output will be a pandas dataframe with the following fields:
+
 (index) id: int
 raw_text: str
 cleaned_text: str
@@ -37,14 +38,27 @@ percent_capitals: float
 $_count: int
 *_count: int
 
-
 Note that the [symbol]_count columns above can change, based on the specified symbol list. The columns shown here are
 the symbols that are selected by default.
 
 
-Feature Engineering (put_module_reference_here):
+Feature Engineering (feature_engineering.py):
 
-<insert description here>
+This module defines the FeatureEngineering class, which takes in the output of the data cleaning process accomplished
+via the DataProcessor class and generates an expanded dataframe with additional columns for each new feature that is
+generated. There are two main methods in this module. First is the fit_transform method, which intakes the training data
+in order to train the feature-generating helper methods, wherever such training is required. This method returns a
+transformed version of the training data DataFrame, which contains additional columns for each of the new features. The
+second main method is the transform method, which uses the trained helper methods from an earlier call to fit_transform
+in order to transform the validation and test datasets to include the complete list of generated features for each
+dataset.
+
+The outputs of the fit_transform and transform methods will be transformed dataframes that contain each of the fields
+mentioned above, as well as the following features:
+
+feature1_name: feature1_type
+feature2_name: feature2_type
+*** TO BE FILLED IN AS WE ADD NEW FEATURES ***
 
 
 Classification Model (put_module_reference_here):

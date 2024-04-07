@@ -49,7 +49,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
 2. Load and clean the raw data.
 
    ```python
-    # Initialize the class
+    # Instantiate the DataProcessor object
     myDP = DataProcessor()
 
     # Load data from disk
@@ -62,7 +62,14 @@ Alternatively, users can run the main.py script, which executes the workflow des
 3. Generate features for the model to use.
 
    ```python
-   # Put FeatureEngineering-affiliated code here
+    # Instantiate the FeatureEngineering object
+    myFE = FeatureEngineering()
+
+    # Fit the feature generators
+    train_df = myFE.fit_transform(myDP.processed_data['train'])
+
+    # Transform the validation data
+    val_df = myFE.transform(myDP.processed_data['validation'])
    ```
 
 4. Train the classification model.
