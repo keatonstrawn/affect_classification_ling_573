@@ -11,18 +11,13 @@ from typing import Optional
 class FeatureEngineering:
 
     def __init__(self):
-        """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in SemEval 2019
-        task 5.
+        """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in
+        SemEval 2019 task 5.
 
         Includes methods to generate the following features:
             * example feature1 --> fill this in with actual feature
             * example feature2 --> fill this in with actual feature
             * example feature3 --> fill this in with actual feature
-
-            Attributes
-            ----------
-            train_data
-                The cleaned training data that results from the data processing steps.
         """
 
         # Initialize the cleaned datasets

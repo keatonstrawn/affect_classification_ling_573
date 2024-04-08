@@ -75,7 +75,14 @@ Alternatively, users can run the main.py script, which executes the workflow des
 4. Train the classification model.
 
    ```python
-   # Put ClassificationModel-affiliated code here
+    # Instantiate the model
+    myClassifier = ClassificationModel('baseline')
+
+    # Train the model
+    train_pred = myClassifier.fit(train_df, task='hate_speech_detection', keep_training_data=False)
+
+    # Run the model on the validation data
+    val_pred = myClassifier.predict(val_df)
    ```
 
 5. Evaluate the model's performance.

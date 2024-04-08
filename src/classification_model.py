@@ -12,7 +12,21 @@ from copy import deepcopy
 class ClassificationModel:
 
     def __init__(self, model_type: str):
-        """ Description
+        """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in
+        SemEval 2019 task 5.
+
+        Includes methods to train the following classification models:
+            * baseline model: guesses the target class most commonly seen in the training data
+            * example model2 --> fill this in with model info
+            * example model3 --> fill this in with model info
+
+            Parameters
+            ----------
+            model_type
+                Specifies which type of model is used to perform classification. Options include:
+                    'baseline'
+                    'model2'
+                    'model3'
         """
 
         # Initialize model parameters
@@ -22,11 +36,13 @@ class ClassificationModel:
         # Initialize flag to indicate whether model training has occurred
         self.fitted = False
 
-        # Create attributes to optionally store training data
+        # Create attribute to optionally store training data
         self.train_data: Optional[pd.DataFrame] = None
 
         # Create attributes for baseline model
         self.most_frequent_category: Optional[Dict[str, int]] = None
+
+        # TODO: create necessary attributes for other models as they are added
 
     def _fit_baseline_model(self, train_data: pd.DataFrame, task: List[str]) -> pd.DataFrame:
         """Trains a baseline categorization model, which predicts the target category most frequently seen in the

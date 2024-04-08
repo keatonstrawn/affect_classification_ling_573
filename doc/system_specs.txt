@@ -1,6 +1,8 @@
 This text file contains descriptions of the system specifications. In particular, it documents the expected inputs and
 outputs for each component of the system. It may also give a brief description of what each component does.
 
+
+
 Data Processor (data_processor.py):
 
 This module defines the DataProcessor class, which is used to pull and clean the raw data. The data is read in from .csv
@@ -42,10 +44,11 @@ Note that the [symbol]_count columns above can change, based on the specified sy
 the symbols that are selected by default.
 
 
+
 Feature Engineering (feature_engineering.py):
 
-This module defines the FeatureEngineering class, which takes in the output of the data cleaning process accomplished
-via the DataProcessor class and generates an expanded dataframe with additional columns for each new feature that is
+This module defines the FeatureEngineering class, which takes in the output of the data cleaning process, accomplished
+via the DataProcessor class, and generates an expanded dataframe with additional columns for each new feature that is
 generated. There are two main methods in this module. First is the fit_transform method, which intakes the training data
 in order to train the feature-generating helper methods, wherever such training is required. This method returns a
 transformed version of the training data DataFrame, which contains additional columns for each of the new features. The
@@ -61,9 +64,45 @@ feature2_name: feature2_type
 *** TO BE FILLED IN AS WE ADD NEW FEATURES ***
 
 
-Classification Model (put_module_reference_here):
 
-<insert description here>
+Classification Model (classification_model.py):
+
+This module defines the ClassificationModel class, which takes in the output of the feature engineering process,
+accomplished via the FeatureEngineering class, and uses the engineered features to train a model to predict the target
+class for a given set of features. This is accomplished by first training the model by providing a training dataset that
+includes gold-standard labels for the classification task of interest. Once a model is trained the predict method can
+be used to make predictions with that model over a new dataset that contains all the features (except for the
+gold-standard targets) used during model training.
+
+Both the fit and predict methods will produce a dataframe that contains each of the original columns seen in the
+provided data, as well as a new column (or columns) for each target the model predicted. The number of new columns and
+datatype in each will depend on the classification model. The model types and affiliated prediction columns are listed
+below. Note that these lists include all possible new columns, assuming that models were trained for all target
+classification tasks. If a model is only trained for a subset of the classification tasks, then that model's fit and
+predict methods will return dataframes that only contain the columns affiliated with the target classification tasks on
+which the model was trained.
+
+Model type: baseline
+    # TODO: include other models that predict separate classes in a discrete manner (if they exist)
+New columns:
+    HR_prediction: boolean (0 or 1)
+    TR_prediction: boolean (0 or 1)
+    AG_prediction: boolean (0 or 1)
+
+Model type: everything else?
+    # TODO: include models that predict separate classes in a continusous manner (e.g. there is a 37% chance it is
+        # hate speech and a 63% chance that it is not hate speech, etc.)
+New columns:
+    HR_0: float [0, 1]
+    HR_1: float [0, 1]
+    TR_0: float [0, 1]
+    TR_1: float [0, 1]
+    AG_0: float [0, 1]
+    AG_1: float [0, 1]
+    HR_prediction: boolean (0 or 1)
+    TR_prediction: boolean (0 or 1)
+    AG_prediction: boolean (0 or 1)
+
 
 
 Model Evaluator (put_module_reference_here):
