@@ -10,6 +10,7 @@ dependencies:
   - gensim
   - nltk
   - spacy
+  - nrclex
   - scikit-learn
   - pyyaml  
   - emoji

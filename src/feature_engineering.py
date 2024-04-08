@@ -6,7 +6,7 @@ model can use to classify the tweets within the dataset.
 import pandas as pd
 
 from typing import Optional
-
+from nrclex import NRCLex
 
 # Define class to perform feature engineering
 class FeatureEngineering:
@@ -27,7 +27,7 @@ class FeatureEngineering:
         # Set fit flag
         self.fitted = False
 
-   def NRC_counts_method(self, data: pd.DataFrame, fit: bool):
+    def NRC_counts_method(self, data: pd.DataFrame, fit: bool):
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
         positive, sadness, surprise, trust. It sums the frequency counts in each of the eight dimensions across all the words 
