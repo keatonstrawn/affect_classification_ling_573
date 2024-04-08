@@ -27,8 +27,13 @@ class FeatureEngineering:
         # Set fit flag
         self.fitted = False
 
-    def _example_feature1_method(self, data: pd.DataFrame, fit: bool, other_args):
-        """This is a placeholder for a method that would be implemented to generate a particular feature from the data.
+   def NRC_counts_method(self, data: pd.DataFrame, fit: bool):
+        """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
+        the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
+        positive, sadness, surprise, trust. It sums the frequency counts in each of the eight dimensions across all the words 
+        in a tweet, then divides by the total number of counts to obtain a proportion. These proportions are added on to the end 
+        of the dataframe as count-based features.
+
 
         Arguments:
         ---------
@@ -38,14 +43,35 @@ class FeatureEngineering:
             If true then we assume the provided data is training data and the method is allowed to learn any necessary
             values from the dataset. If false then we assume the provided data is validation or test data and the
             values necessary to generate the feature have been pre-computed from the training data in a previous step.
-        other_args
-            Include any additional arguments that the method may require.
 
         Returns:
         -------
-        The original dataset with a new column (or columns) that contain(s) the new feature generated for each
-        observation in the dataset.
+        The original dataset with eight new columns that contain the new emotion features generated for each tweet in the
+        dataset.
+
         """
+        # add eight columns to the end of the dataframe, representing the eight emotional dimensions of NRC
+        emotions = ['anger', 'anticip', 'disgust', 'fear', 'joy', 'negative', 'positive', 'sadness', 'surprise', 'trust']
+        for emotion in emotions:
+            data[emotion] = 0
+
+        # iterate over each tweet to get counts of each emotion classification
+        for index, row in data.iterrows():
+            text = row['tweet'].split()
+
+            # iterate over each word in the tweet
+            for word in text:
+                emotion = NRCLex(word)
+                if emotion is not None:
+                    emolist = emotion.affect_list
+                    for emo in emolist:
+                        data.at[index, emo] += 1
+
+        # divide by total count of emo markers to get proportions not frequency counts
+        # Replace 0 values with NaN to prevent error with dividing by zero
+        rowsums = data.iloc[:, -8:].sum(axis=1)
+        rowsums[rowsums == 0] = float('NaN')
+        data.iloc[:, -8:] = data.iloc[:, -8:].div(rowsums, axis=0)
 
         return data
 
@@ -128,4 +154,5 @@ if __name__ == '__main__':
     # View a sample of the results
     train_df.head()
     val_df.head()
+
 
