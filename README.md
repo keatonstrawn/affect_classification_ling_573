@@ -41,7 +41,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
 
    ```python
    from src.data_processor import DataProcessor
-   # import FeatureEngineering class
+   from src.feature_engineering import FeatureEngineering
    # import ClassificationModel class
    # import ModelEvaluator class
    ```

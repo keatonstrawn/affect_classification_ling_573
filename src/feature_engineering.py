@@ -1,5 +1,5 @@
-""" This script defines a helper class to take the cleand HatEval data and generate features that a classification model
-can use to classify the tweets within the dataset.
+""" This script defines a helper class to take the cleaned HatEval data and generate features that a classification
+model can use to classify the tweets within the dataset.
 """
 
 # Libraries
@@ -47,8 +47,8 @@ class FeatureEngineering:
 
         Returns:
         -------
-        The original dataset with a new column that contains the new feature generated for each observation in the
-        dataset.
+        The original dataset with a new column (or columns) that contain(s) the new feature generated for each
+        observation in the dataset.
         """
 
         return data
@@ -73,8 +73,10 @@ class FeatureEngineering:
         # Get the training data, to be used for fitting
         self.train_data = train_data
 
-        # Add in steps for each feature that is to be generated
+        # Framework to add in steps for each feature that is to be generated
         transformed_data = self._example_feature1_method(train_data, fit=True, other_args=None)
+
+        # TODO: add in code below to fit and transform training data to generate other features as they are added
 
         # Update the fitted flag
         self.fitted = True
@@ -100,8 +102,10 @@ class FeatureEngineering:
         # Ensure feature generating methods have been trained prior to transforming the data
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
-        # Add in steps for each feature that is to be generated
+        # Framework to add in steps for each feature that is to be generated
         transformed_data = self._example_feature1_method(data, fit=False, other_args=None)
+
+        # TODO: add in code below to transform datasets to generate other features as they are added
 
         return transformed_data
 
@@ -124,4 +128,8 @@ if __name__ == '__main__':
 
     # Transform
     val_df = myFE.transform(myDP.processed_data['validation'])
+
+    # View a sample of the results
+    train_df.head()
+    val_df.head()
 
