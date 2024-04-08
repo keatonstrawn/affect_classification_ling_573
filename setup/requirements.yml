@@ -1,0 +1,24 @@
+name: Affect
+channels:
+  - anaconda
+  - conda-forge
+dependencies:
+  - python=3.9
+  - numpy
+  - pandas
+  - empath
+  - gensim
+  - nltk
+  - spacy
+  - scikit-learn
+  - pyyaml  
+  - emoji
+  - pytorch=1.12.1  # Add PyTorch to ensure compatibility with the transformers library
+  - transformers=4.17.0  # This will attempt to get the latest version available on conda channels
+  - pip
+  - pip:
+    - contractions
+
+
+
+
