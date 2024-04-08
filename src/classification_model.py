@@ -4,9 +4,8 @@ the features generated from the FeatureEngineering class."""
 # Libraries
 import pandas as pd
 
-from sklearn import svm
 from typing import List, Optional, Dict
-from copy import deepcopy
+
 
 # Define class to house classification models
 class ClassificationModel:
@@ -44,7 +43,7 @@ class ClassificationModel:
 
         # TODO: create necessary attributes for other models as they are added
 
-    def _fit_baseline_model(self, train_data: pd.DataFrame, task: List[str]) -> pd.DataFrame:
+    def _fit_baseline_model(self, train_data: pd.DataFrame, tasks: List[str]) -> pd.DataFrame:
         """Trains a baseline categorization model, which predicts the target category most frequently seen in the
         training data for every
 
@@ -52,7 +51,7 @@ class ClassificationModel:
         ----------
         train_data
             The data set, with the complete set of engineered features, that is used to train the model.
-        task
+        tasks
             The classification task(s) that the model is being trained to predict. If a list of tasks is given then the
             same model is trained to predict each of those labels simultaneously. To train an individual model for each
             task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
@@ -66,19 +65,19 @@ class ClassificationModel:
         """
 
         # Initialise prediction dataframe
-        pred_df = deepcopy(train_data)
+        pred_df = train_data
 
         # Get prediction value(s)
         most_frequent_target = {}
-        for t in task:
+        for t in tasks:
             if t == 'hate_speech_detection':
-                hs_mode = train_data['HS'].mode()
+                hs_mode = train_data['HS'].mode().values[0]
                 most_frequent_target['HS'] = hs_mode
             if t == 'target_or_general':
-                tr_mode = train_data['TR'].mode()
+                tr_mode = train_data['TR'].mode().values[0]
                 most_frequent_target['TR'] = tr_mode
             if t == 'aggression_detection':
-                ag_mode = train_data['AG'].mode()
+                ag_mode = train_data['AG'].mode().values[0]
                 most_frequent_target['AG'] = ag_mode
 
         # Save trained predictions
@@ -86,20 +85,20 @@ class ClassificationModel:
 
         # Add predictions to the dataframe
         n_cols = len(pred_df.columns)
-        for k in most_frequent_target:
+        for k in most_frequent_target.keys():
             pred = most_frequent_target[k]
             pred_df.insert(loc=n_cols, column=f'{k}_prediction', value=pred)
 
         return pred_df
 
-    def fit(self, train_data: pd.DataFrame, task: List[str], keep_training_data: bool = True) -> pd.DataFrame:
+    def fit(self, train_data: pd.DataFrame, tasks: List[str], keep_training_data: bool = True) -> pd.DataFrame:
         """Uses the provided data to train the model to perform the specified classification task.
 
         Arguments:
         ----------
         train_data
             The data set, with the complete set of engineered features, that is used to train the model.
-        task
+        tasks
             The classification task(s) that the model is being trained to predict. If a list of tasks is given then the
             same model is trained to predict each of those labels simultaneously. To train an individual model for each
             task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
@@ -121,7 +120,7 @@ class ClassificationModel:
         if self.model_type == 'baseline':
             if keep_training_data:
                 self.train_data = train_data
-            pred_df = self._fit_baseline_model(train_data, task)
+            pred_df = self._fit_baseline_model(train_data, tasks)
 
         # TODO: Add other sections below that reference helper methods to do any necessary processing and fit_predict
         #  for other classifier models as they are added
@@ -148,7 +147,7 @@ class ClassificationModel:
         assert self.fitted, 'You must train a model before calling the predict method.'
 
         # Initialise prediction dataframe
-        pred_df = deepcopy(data)
+        pred_df = data
 
         # Predictions for baseline model
         if self.model_type == 'baseline':
@@ -184,7 +183,7 @@ if __name__ == '__main__':
     myClassifier = ClassificationModel('baseline')
 
     # Train the model
-    train_pred = myClassifier.fit(train_df, task='hate_speech_detection', keep_training_data=False)
+    train_pred = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)

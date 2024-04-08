@@ -42,7 +42,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
    ```python
    from src.data_processor import DataProcessor
    from src.feature_engineering import FeatureEngineering
-   # import ClassificationModel class
+   from src.classification_model import ClassificationModel
    # import ModelEvaluator class
    ```
 
@@ -79,7 +79,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
     myClassifier = ClassificationModel('baseline')
 
     # Train the model
-    train_pred = myClassifier.fit(train_df, task='hate_speech_detection', keep_training_data=False)
+    train_pred = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
