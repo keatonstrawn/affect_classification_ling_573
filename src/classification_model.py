@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
     # Load and clean the raw data
     myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='/put/data/directory/filepath/here')
+    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
     myDP.clean_data()
 
     # Generate the features for model training

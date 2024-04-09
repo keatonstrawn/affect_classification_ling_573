@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
     # Load and clean the raw data
     myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='../data')
+    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
     myDP.clean_data()
 
     # Instantiate the FeatureEngineering object
