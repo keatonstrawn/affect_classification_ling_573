@@ -1,12 +1,12 @@
-""" This script defines a helper class to take the cleaned HatEval data and generate features that a classification
+"""This script defines a helper class to take the cleaned HatEval data and generate features that a classification
 model can use to classify the tweets within the dataset.
 """
 
 # Libraries
 import pandas as pd
-
-from typing import Optional
 from nrclex import NRCLex
+from typing import Optional
+from nltk.tokenize import word_tokenize
 
 # Define class to perform feature engineering
 class FeatureEngineering:
@@ -16,7 +16,8 @@ class FeatureEngineering:
         SemEval 2019 task 5.
 
         Includes methods to generate the following features:
-            * example feature1 --> fill this in with actual feature
+            * _NRC_counts --> binary classification of words across eight emotional dimensions. Raw counts are then
+                                    transformed into proportions to normalize across tweets.
             * example feature2 --> fill this in with actual feature
             * example feature3 --> fill this in with actual feature
         """
@@ -27,7 +28,7 @@ class FeatureEngineering:
         # Set fit flag
         self.fitted = False
 
-    def NRC_counts_method(self, data: pd.DataFrame, fit: bool):
+    def _NRC_counts(self, data: pd.DataFrame, fit: bool):
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
         positive, sadness, surprise, trust. It sums the frequency counts in each of the eight dimensions across all the words 
@@ -51,15 +52,15 @@ class FeatureEngineering:
 
         """
         # add eight columns to the end of the dataframe, representing the eight emotional dimensions of NRC
-        emotions = ['anger', 'anticip', 'disgust', 'fear', 'joy', 'negative', 'positive', 'sadness', 'surprise', 'trust']
+        emotions = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'negative', 'positive', 'sadness', 'surprise', 'trust']
         for emotion in emotions:
             data[emotion] = 0
-
+        
         # iterate over each tweet to get counts of each emotion classification
         for index, row in data.iterrows():
-            text = row['tweet'].split()
+            text = word_tokenize(row['raw_text'])
 
-            # iterate over each word in the tweet
+            # iterate over each word in the tweet, add counts to emotion vector
             for word in text:
                 emotion = NRCLex(word)
                 if emotion is not None:
@@ -72,6 +73,9 @@ class FeatureEngineering:
         rowsums = data.iloc[:, -8:].sum(axis=1)
         rowsums[rowsums == 0] = float('NaN')
         data.iloc[:, -8:] = data.iloc[:, -8:].div(rowsums, axis=0)
+
+        # ***Uncomment the line below to create file showing the data visualized***
+        # data.to_csv('test.txt', sep=',', header=True)
 
         return data
 
@@ -96,7 +100,8 @@ class FeatureEngineering:
         self.train_data = train_data
 
         # Framework to add in steps for each feature that is to be generated
-        transformed_data = self._example_feature1_method(train_data, fit=True, other_args=None)
+        # transformed_data = self._example_feature1_method(train_data, fit=True, other_args=None)
+        transformed_data = self._NRC_counts(train_data, fit=True)
 
         # TODO: add in code below to fit and transform training data to generate other features as they are added
 
@@ -125,7 +130,7 @@ class FeatureEngineering:
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
         # Framework to add in steps for each feature that is to be generated
-        transformed_data = self._example_feature1_method(data, fit=False, other_args=None)
+        transformed_data = self._NRC_counts(data, fit=False)
 
         # TODO: add in code below to transform datasets to generate other features as they are added
 
@@ -135,11 +140,11 @@ class FeatureEngineering:
 if __name__ == '__main__':
 
     # Imports
-    from src.data_processor import DataProcessor
+    from data_processor import DataProcessor
 
     # Load and clean the raw data
     myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='/put/data/directory/filepath/here')
+    myDP.load_data(language='english', filepath='../data')
     myDP.clean_data()
 
     # Instantiate the FeatureEngineering object

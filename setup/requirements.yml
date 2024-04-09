@@ -10,7 +10,6 @@ dependencies:
   - gensim
   - nltk
   - spacy
-  - nrclex
   - scikit-learn
   - pyyaml  
   - emoji
@@ -19,6 +18,7 @@ dependencies:
   - pip
   - pip:
     - contractions
+    - nrclex
 
 
 
