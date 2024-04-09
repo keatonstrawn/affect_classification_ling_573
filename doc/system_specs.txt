@@ -59,7 +59,9 @@ dataset.
 The outputs of the fit_transform and transform methods will be transformed dataframes that contain each of the fields
 mentioned above, as well as the following features:
 
-feature1_name: feature1_type
+_NRC_counts --> binary classification of words across eight emotional dimensions, then a positive dimension and a negative dimension. Raw counts are then transformed into
+                                    proportions to normalize across tweets. This method adds ten new columns to the 
+                                    end of the dataframe
 feature2_name: feature2_type
 *** TO BE FILLED IN AS WE ADD NEW FEATURES ***
 
