@@ -367,7 +367,7 @@ if __name__ == '__main__':
     myDP = DataProcessor()
 
     # Load data from disk
-    myDP.load_data(language='english', filepath='/put/data/directory/filepath/here')
+    myDP.load_data(language='english', filepath='data')
 
     # Clean the text
     myDP.clean_data()

@@ -53,7 +53,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
     myDP = DataProcessor()
 
     # Load data from disk
-    myDP.load_data(language='english', filepath='/put/data/directory/filepath/here')
+    myDP.load_data(language='english', filepath='data')
 
     # Clean the text
     myDP.clean_data()
