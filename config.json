@@ -3,19 +3,24 @@
       "data_ingested": {
           "training": true,
           "devtest": true,
-          "evaltest": true
       },
-    "input_tsv_file": {
-        "training": # will fill in with path ,
-        "devtest": # will fill in with path ,
-        "evaltest": # will fill in with path ,
+    "input_tsv_files": {
+        "training": "data/train_en.tsv" ,
+        "devtest": "data/dev_en.tsv" ,
+        "language": "english"
     },
-    "output_dir": {
-        "training": "data/training",
-        "devtest": "data/devtest",
-        "evaltest": "data/evaltest"
-    }
   },
   "model": {
-  }
+        "feature_engineering": {
+            "approach": "_NRC_counts" # will need to modify to include multiple approaches
+        },
+        "classification": {
+            "approach": "Random_Forest" # will need to be changed
+        }
+  },
+  "evaluation": {
+        "metrics": "F1",
+        "data_subset": "devtest",
+        "results_dir": "results/devtest",
+    }
 }
