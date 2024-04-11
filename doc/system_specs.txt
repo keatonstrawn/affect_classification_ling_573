@@ -84,10 +84,10 @@ classification tasks. If a model is only trained for a subset of the classificat
 predict methods will return dataframes that only contain the columns affiliated with the target classification tasks on
 which the model was trained.
 
-Model type: baseline
+Model type: baseline, random_forest
     # TODO: include other models that predict separate classes in a discrete manner (if they exist)
 New columns:
-    HR_prediction: boolean (0 or 1)
+    HS_prediction: boolean (0 or 1)
     TR_prediction: boolean (0 or 1)
     AG_prediction: boolean (0 or 1)
 
@@ -95,13 +95,13 @@ Model type: everything else?
     # TODO: include models that predict separate classes in a continusous manner (e.g. there is a 37% chance it is
         # hate speech and a 63% chance that it is not hate speech, etc.)
 New columns:
-    HR_0: float [0, 1]
-    HR_1: float [0, 1]
+    HS_0: float [0, 1]
+    HS_1: float [0, 1]
     TR_0: float [0, 1]
     TR_1: float [0, 1]
     AG_0: float [0, 1]
     AG_1: float [0, 1]
-    HR_prediction: boolean (0 or 1)
+    HS_prediction: boolean (0 or 1)
     TR_prediction: boolean (0 or 1)
     AG_prediction: boolean (0 or 1)
 

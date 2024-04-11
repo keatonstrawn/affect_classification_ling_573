@@ -72,20 +72,36 @@ Alternatively, users can run the main.py script, which executes the workflow des
     val_df = myFE.transform(myDP.processed_data['validation'])
    ```
 
-4. Train the classification model.
+4. Train the baseline model.
 
    ```python
     # Instantiate the model
-    myClassifier = ClassificationModel('baseline')
+    myBaseline = ClassificationModel('baseline')
 
     # Train the model
-    train_pred = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
+    train_pred_baseline = myBaseline.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
 
     # Run the model on the validation data
-    val_pred = myClassifier.predict(val_df)
+    val_pred_baseline = myBaseline.predict(val_df)
    ```
 
-5. Evaluate the model's performance.
+5. Train the classification model.
+
+   ```python
+    # Instantiate the model
+    myClassifier = ClassificationModel('random_forest')
+
+    # Train the model
+    features = ['percent_capitals', '!_count', '?_count', '$_count', '*_count', 'negative', 'positive', 'anger',
+                'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
+    train_pred_rf = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False, 
+                                     features=features)
+
+    # Run the model on the validation data
+    val_pred_rf = myClassifier.predict(val_df)
+   ```
+
+6. Evaluate the model's performance.
 
    ```python
    # Put ModelEvaluator-affiliated code here
