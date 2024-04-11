@@ -12,7 +12,7 @@
         },
         "classification": {
             "approach": "Random_Forest" , # will need to be changed
-            "additional_parameters": {
+            "params": {
                 "task1": "hate_speech_detection",
                 "param2": "put_param_here"
             }
