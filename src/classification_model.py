@@ -130,7 +130,6 @@ class ClassificationModel:
 
         # Limit training data to include only the features and rid of NAs
         x_train = train_data[features]
-        x_train = x_train.fillna(0)
 
         # Specify classification objective(s)
         y_train = train_data[task_cols]
@@ -245,7 +244,6 @@ class ClassificationModel:
 
             # Clean the data
             x_data = data[self.features]
-            x_data = x_data.fillna(0)
 
             # Get the predictions
             task_cols = [self.target_map[t] for t in self.tasks]

@@ -67,7 +67,7 @@ class FeatureEngineering:
         # divide by total count of emo markers to get proportions not frequency counts
         # Replace 0 values with NaN to prevent error with dividing by zero
         rowsums = data.iloc[:, -10:].sum(axis=1)
-        rowsums[rowsums == 0] = float('NaN')
+        rowsums[rowsums == 0] = 1.0
         data.iloc[:, -10:] = data.iloc[:, -10:].div(rowsums, axis=0)
 
         # ***Uncomment the line below to create file showing the data visualized***
