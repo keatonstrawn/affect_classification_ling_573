@@ -20,6 +20,15 @@ class DataProcessor:
             * Pulling the data from GitHub
             * Loading the data from disk
             * Cleaning the text (removing hyperlinks, emojis, etc.)
+
+            Attributes
+            ----------
+            raw_data
+                The raw, unprocessed data. Stored in a dictionary that is keyed for 'train', 'validation' and 'test'
+                datasets.
+            processed_data
+                The processed data, in a format that is compatible with the FeatureEngineering input. Stored in a
+                dictionary that is keyed for 'train', 'validation' and 'test' datasets.
         """
         self.raw_data: Dict[str: pd.DataFrame] = None
         self.processed_data: Dict[str: pd.DataFrame] = None
@@ -368,6 +377,7 @@ if __name__ == '__main__':
 
     # Load data from disk
     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+
 
     # Clean the text
     myDP.clean_data()

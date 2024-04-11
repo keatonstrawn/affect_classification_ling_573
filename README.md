@@ -41,19 +41,23 @@ Alternatively, users can run the main.py script, which executes the workflow des
 
    ```python
    from src.data_processor import DataProcessor
+
    from src.feature_engineering import FeatureEngineering
    from src.classification_model import ClassificationModel
+
    # import ModelEvaluator class
    ```
 
 2. Load and clean the raw data.
 
    ```python
+
     # Instantiate the DataProcessor object
     myDP = DataProcessor()
 
     # Load data from disk
     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+
 
     # Clean the text
     myDP.clean_data()
@@ -62,6 +66,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
 3. Generate features for the model to use.
 
    ```python
+
     # Instantiate the FeatureEngineering object
     myFE = FeatureEngineering()
 
@@ -70,11 +75,13 @@ Alternatively, users can run the main.py script, which executes the workflow des
 
     # Transform the validation data
     val_df = myFE.transform(myDP.processed_data['validation'])
+
    ```
 
 4. Train the classification model.
 
    ```python
+
     # Instantiate the model
     myClassifier = ClassificationModel('baseline')
 
@@ -83,6 +90,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
+
    ```
 
 5. Evaluate the model's performance.

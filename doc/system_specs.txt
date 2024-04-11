@@ -3,6 +3,7 @@ outputs for each component of the system. It may also give a brief description o
 
 
 
+
 Data Processor (data_processor.py):
 
 This module defines the DataProcessor class, which is used to pull and clean the raw data. The data is read in from .csv
@@ -40,8 +41,10 @@ percent_capitals: float
 $_count: int
 *_count: int
 
+
 Note that the [symbol]_count columns above can change, based on the specified symbol list. The columns shown here are
 the symbols that are selected by default.
+
 
 
 
