@@ -13,8 +13,9 @@
         "classification": {
             "approach": "Random_Forest" , # will need to be changed
             "params": {
-                "task1": "hate_speech_detection",
-                "param2": "put_param_here"
+                "task1": "hate_speech_detection" ,
+                "keep_training_data": "False" ,
+                "param3": "put_param_here"
             }
         }
   },
