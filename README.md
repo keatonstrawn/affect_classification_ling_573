@@ -41,19 +41,23 @@ Alternatively, users can run the main.py script, which executes the workflow des
 
    ```python
    from src.data_processor import DataProcessor
-   # import FeatureEngineering class
-   # import ClassificationModel class
+
+   from src.feature_engineering import FeatureEngineering
+   from src.classification_model import ClassificationModel
+
    # import ModelEvaluator class
    ```
 
 2. Load and clean the raw data.
 
    ```python
-    # Initialize the class
+
+    # Instantiate the DataProcessor object
     myDP = DataProcessor()
 
     # Load data from disk
-    myDP.load_data(language='english', filepath='/put/data/directory/filepath/here')
+    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+
 
     # Clean the text
     myDP.clean_data()
@@ -62,13 +66,31 @@ Alternatively, users can run the main.py script, which executes the workflow des
 3. Generate features for the model to use.
 
    ```python
-   # Put FeatureEngineering-affiliated code here
+
+    # Instantiate the FeatureEngineering object
+    myFE = FeatureEngineering()
+
+    # Fit the feature generators
+    train_df = myFE.fit_transform(myDP.processed_data['train'])
+
+    # Transform the validation data
+    val_df = myFE.transform(myDP.processed_data['validation'])
+
    ```
 
 4. Train the classification model.
 
    ```python
-   # Put ClassificationModel-affiliated code here
+
+    # Instantiate the model
+    myClassifier = ClassificationModel('baseline')
+
+    # Train the model
+    train_pred = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
+
+    # Run the model on the validation data
+    val_pred = myClassifier.predict(val_df)
+
    ```
 
 5. Evaluate the model's performance.
