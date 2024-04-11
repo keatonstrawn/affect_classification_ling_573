@@ -31,15 +31,36 @@ def main(config):
     # Initialize the class
     myDP = DataProcessor()
     # Load data from disk
-    myDP.load_data(language= input_tsv_files['language'], train_file = input_tsv_files['training'], validation_file = input_tsv_files['devtest'])  
+    myDP.load_data(language= input_tsv_files['language'], 
+                   train_file = input_tsv_files['training'], 
+                   validation_file = input_tsv_files['devtest'])  
     # Clean the text
     myDP.clean_data()
   
+    # Instantiate the FeatureEngineering object
+    myFE = FeatureEngineering(config['model']['feature_engineering']['approach'])
+    # Fit
+    train_df = myFE.fit_transform(myDP.processed_data['train'])
+    # Transform
+    val_df = myFE.transform(myDP.processed_data['validation'])
+
     # View a sample of the results
-    # myDP.processed_data['train'].head()
-    # myDP.processed_data['validation'].head()
-    myFE = FeatureEngineering()
-      
+    train_df.head()
+    val_df.head()
+
+    # Instantiate the model
+    myClassifier = ClassificationModel(config['model']['classification']['approach'])
+    
+    # Train the model
+    train_pred = myClassifier.fit(train_df, tasks=[config['model']['classification']['params']['task1']], 
+                                  keep_training_data=config['model']['classification']['params']['keep_training_data'])
+
+    # Run the model on the validation data
+    val_pred = myClassifier.predict(val_df)
+
+    # View a sample of the results
+    train_df.head()
+    val_df.head()      
 
 
 if __name__ == "__main__":
