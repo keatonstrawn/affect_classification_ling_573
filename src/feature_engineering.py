@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 # Define class to perform feature engineering
 class FeatureEngineering:
 
-    def __init__(self):
+    def __init__(self, approach="_NRC_counts"):
         """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in
         SemEval 2019 task 5.
 
@@ -21,12 +21,15 @@ class FeatureEngineering:
             * example feature2 --> fill this in with actual feature
             * example feature3 --> fill this in with actual feature
         """
-
+        
         # Initialize the cleaned datasets
         self.train_data: Optional[pd.DataFrame] = None
 
         # Set fit flag
         self.fitted = False
+
+        # Set approach
+        self.approach = approach
 
     def _NRC_counts(self, data: pd.DataFrame):
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
@@ -97,7 +100,12 @@ class FeatureEngineering:
 
         # Framework to add in steps for each feature that is to be generated
         # transformed_data = self._example_feature1_method(train_data, fit=True, other_args=None)
-        transformed_data = self._NRC_counts(train_data)
+        if self.approach == '_NRC_counts':
+            transformed_data = self._NRC_counts(train_data)
+        # elif self.approach == 'fe_method_2':
+        #     transformed_data = self.fe_method_2(train_data, fit=True, other_args=None)
+        else:
+            raise ValueError(f"Unknown approach: {self.approach}")        
 
         # TODO: add in code below to fit and transform training data to generate other features as they are added
 
@@ -126,34 +134,38 @@ class FeatureEngineering:
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
         # Framework to add in steps for each feature that is to be generated
-        transformed_data = self._NRC_counts(data)
+        if self.approach == '_NRC_counts':
+            transformed_data = self._NRC_counts(train_data)
+        # elif self.approach == 'fe_method_2':
+        #     transformed_data = self.fe_method_2(train_data)
+        else:
+            raise ValueError(f"Unknown approach: {self.approach}") 
 
         # TODO: add in code below to transform datasets to generate other features as they are added
 
         return transformed_data
 
+''' The lines below are commented out so that all code is run through main.py
+'''
+# if __name__ == '__main__':
 
-if __name__ == '__main__':
+#     # Imports
+#     from data_processor import DataProcessor
 
-    # Imports
-    from data_processor import DataProcessor
+#     # Load and clean the raw data
+#     myDP = DataProcessor()
+#     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+#     myDP.clean_data()
 
-    # Load and clean the raw data
-    myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-    myDP.clean_data()
+#     # Instantiate the FeatureEngineering object
+#     myFE = FeatureEngineering()
 
-    # Instantiate the FeatureEngineering object
-    myFE = FeatureEngineering()
+#     # Fit
+#     train_df = myFE.fit_transform(myDP.processed_data['train'])
 
-    # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'])
+#     # Transform
+#     val_df = myFE.transform(myDP.processed_data['validation'])
 
-    # Transform
-    val_df = myFE.transform(myDP.processed_data['validation'])
-
-    # View a sample of the results
-    train_df.head()
-    val_df.head()
-
-
+#     # View a sample of the results
+#     train_df.head()
+#     val_df.head()
