@@ -1,26 +1,26 @@
 {
   "document_processing": {
-      "data_ingested": {
-          "training": true,
-          "devtest": true,
-      },
-    "input_tsv_files": {
-        "training": "data/train_en.tsv" ,
-        "devtest": "data/dev_en.tsv" ,
-        "language": "english"
-    },
+        "input_tsv_files": {
+            "training": "data/train_en.tsv" ,
+            "devtest": "data/dev_en.tsv" ,
+            "language": "english"
+        }
   },
   "model": {
         "feature_engineering": {
             "approach": "_NRC_counts" # will need to modify to include multiple approaches
         },
         "classification": {
-            "approach": "Random_Forest" # will need to be changed
+            "approach": "Random_Forest" , # will need to be changed
+            "additional_parameters": {
+                "param1": "put_param_here",
+                "param2": "put_param_here"
+            }
         }
   },
   "evaluation": {
         "metrics": "F1",
         "data_subset": "devtest",
         "results_dir": "results/devtest",
-    }
+  }
 }
