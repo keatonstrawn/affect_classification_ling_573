@@ -31,9 +31,11 @@ def main(config):
     # Initialize the class
     myDP = DataProcessor()
     # Load data from disk
-    myDP.load_data(language= input_tsv_files['language'], 
-                   train_file = input_tsv_files['training'], 
-                   validation_file = input_tsv_files['devtest'])  
+    myDP.load_data(language= input_tsv_files['language'],
+                   filepath = input_tsv_files['filepath']) 
+                #    train_file = input_tsv_files['training'], 
+                #    validation_file = input_tsv_files['devtest'])  
+                
     # Clean the text
     myDP.clean_data()
   
@@ -45,8 +47,10 @@ def main(config):
     val_df = myFE.transform(myDP.processed_data['validation'])
 
     # View a sample of the results
-    train_df.head()
-    val_df.head()
+    # with open("test.txt", "w") as f:
+    #     f.write(str(train_df.head()))
+    #     f.write("\t")
+    #     f.write(str(val_df.head()))
 
     # Instantiate the model
     myClassifier = ClassificationModel(config['model']['classification']['approach'])

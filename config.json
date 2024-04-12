@@ -1,17 +1,18 @@
 {
   "document_processing": {
         "input_tsv_files": {
-            "training": "data/train_en.tsv" ,
-            "devtest": "data/dev_en.tsv" ,
+            "filepath": "../data",
+            "training": "../data/train_en.tsv" ,
+            "devtest": "../data/dev_en.tsv" ,
             "language": "english"
         }
   },
   "model": {
         "feature_engineering": {
-            "approach": "_NRC_counts" # will need to modify to include multiple approaches
+            "approach": "_NRC_counts"
         },
         "classification": {
-            "approach": "Random_Forest" , # will need to be changed
+            "approach": "Random_Forest" ,
             "params": {
                 "task1": "hate_speech_detection" ,
                 "keep_training_data": "False" ,
@@ -22,6 +23,6 @@
   "evaluation": {
         "metrics": "F1",
         "data_subset": "devtest",
-        "results_dir": "results/devtest",
+        "results_dir": "results/devtest"
   }
 }

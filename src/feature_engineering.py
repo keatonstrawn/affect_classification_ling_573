@@ -114,7 +114,7 @@ class FeatureEngineering:
 
         return transformed_data
 
-    def transform(self, data):
+    def transform(self, train_data):
         """Uses the feature-generating methods that were fit in an earlier step to transform a new dataset to include
         the feature-set expected by the classification model.
 
@@ -132,6 +132,7 @@ class FeatureEngineering:
 
         # Ensure feature generating methods have been trained prior to transforming the data
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
+
 
         # Framework to add in steps for each feature that is to be generated
         if self.approach == '_NRC_counts':
