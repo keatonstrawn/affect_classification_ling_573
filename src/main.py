@@ -1,11 +1,13 @@
 import json
 import os
 import re
+import pandas as pd
 
 
 from data_processor import DataProcessor
 from feature_engineering import FeatureEngineering
 from classification_model import ClassificationModel
+
 
 
 def load_config(config_path):
@@ -24,6 +26,19 @@ def load_config(config_path):
     except FileNotFoundError:
         return None
 
+
+def evaluate_predictions(pred_df):
+    
+
+    # pred_df['HS_correct'] = pred_df.apply(lambda row: row['HS'] == row['HS_prediction'], axis=1)
+    # if 'TR_prediction' in pred_df:
+    #     pred_df['TR_correct'] = pred_df.apply(lambda row: row['TR'] == row['TR_prediction'], axis=1)
+    # if 'AG_prediction' in pred_df:
+
+
+
+
+
 def main(config):
     doc_config = config['document_processing']
     input_tsv_files = doc_config['input_tsv_files']
@@ -35,7 +50,7 @@ def main(config):
                    filepath = input_tsv_files['filepath']) 
                 #    train_file = input_tsv_files['training'], 
                 #    validation_file = input_tsv_files['devtest'])  
-                
+
     # Clean the text
     myDP.clean_data()
   
