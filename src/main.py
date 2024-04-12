@@ -7,6 +7,7 @@ import pandas as pd
 from data_processor import DataProcessor
 from feature_engineering import FeatureEngineering
 from classification_model import ClassificationModel
+from evaluation import Evaluator
 
 
 
@@ -27,19 +28,58 @@ def load_config(config_path):
         return None
 
 
-def evaluate_predictions(pred_df):
-    
+def make_eval_files(df, language):
+    """
+    Transform dataframes into desired formatted .tsv files for evaluation script
 
-    # pred_df['HS_correct'] = pred_df.apply(lambda row: row['HS'] == row['HS_prediction'], axis=1)
-    # if 'TR_prediction' in pred_df:
-    #     pred_df['TR_correct'] = pred_df.apply(lambda row: row['TR'] == row['TR_prediction'], axis=1)
-    # if 'AG_prediction' in pred_df:
+    Args:
+        df (pandas dataframe): a dataframe containing both the gold standard and prediction classifications
+        language (str): a string referring to the language of the dataframe content
+
+    Returns:
+        None
+    """
+    # check which language the data is in
+    if language == "english":
+        lang = "en"
+    elif language == "spanish":
+        lang = "es"
+
+    # TASK A
+    # split dataframe into gold and prediction dataframes
+    gold_df = df[["id", "cleaned_text", "HS", "TR", "AG"]].copy()
+    pred_a_df = df[["id", "HS_prediction"]].copy()
+
+    # establish file paths, save dataframes as .tsv files
+    goldpath = "".join(["../results/input/ref", lang, ".tsv"])
+    predpath_a = "".join(["../results/input/res", lang, "_a.tsv"])
+    gold_df.to_csv(goldpath, sep="\t") 
+    pred_a_df.to_csv(predpath_a, sep="\t")
+
+
+    # TASK B
+    # split dataframe into gold and prediction dataframes
+    pred_b_df = df[["id", "cleaned_text", "HS_prediction", "TR_prediction", "AG_prediction"]].copy()
+
+    # establish file path, save dataframe as .tsv files
+    predpath_b = "".join(["../results/input/res", lang, "_b.tsv"])
+    pred_b_df.to_csv(predpath_b, sep="\t")
 
 
 
 
 
 def main(config):
+    """
+    Run the system end-to-end using the config file
+
+    Args:
+        config (str): the path to a config.json file specifying the configuration of our system
+
+    Returns:
+        None
+    
+    """
     doc_config = config['document_processing']
     input_tsv_files = doc_config['input_tsv_files']
   
@@ -78,8 +118,17 @@ def main(config):
     val_pred = myClassifier.predict(val_df)
 
     # View a sample of the results
-    train_df.head()
-    val_df.head()      
+    train_pred.head()
+    val_pred.head()   
+
+    # create evaluation files based on val_pred
+    make_eval_files(val_pred, input_tsv_files['language'])
+
+    # Instantiate the evaluator and run it
+    Evaluator("../results/input", "../results/output")
+    Evaluator.main()
+    
+       
 
 
 if __name__ == "__main__":
