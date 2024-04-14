@@ -44,6 +44,7 @@ class ClassificationModel:
         # Create attribute to optionally store training data and predictions
         self.train_data: Optional[pd.DataFrame] = None
         self.train_est: Optional[pd.DataFrame] = None
+        self.model_params: Optional[dict] = None
 
         # Create attributes for baseline model
         self.most_frequent_category: Optional[Dict[str, int]] = None
@@ -137,9 +138,17 @@ class ClassificationModel:
             y_train = y_train.values.flatten()
 
         # Initialize Random Forest Classifier
-        clf = RandomForestClassifier(n_estimators=400, criterion='entropy', max_depth=None, min_samples_split=0.1,
-                                     min_samples_leaf=3, max_features='sqrt', bootstrap=True, n_jobs=None,
-                                     random_state=42, class_weight='balanced_subsample', max_samples=0.2)
+        clf = RandomForestClassifier(n_estimators=self.model_params['n_estimators'],
+                                     criterion=self.model_params['criterion'],
+                                     max_depth=self.model_params['max_depth'],
+                                     min_samples_split=self.model_params['min_samples_split'],
+                                     min_samples_leaf=self.model_params['min_samples_leaf'],
+                                     max_features=self.model_params['max_features'],
+                                     bootstrap=self.model_params['bootstrap'],
+                                     n_jobs=self.model_params['n_jobs'],
+                                     random_state=self.model_params['random_state'],
+                                     class_weight=self.model_params['class_weight'],
+                                     max_samples=self.model_params['max_samples'])
 
         # Fit to the training data
         clf.fit(x_train, y_train)
@@ -159,7 +168,7 @@ class ClassificationModel:
         return pred_df
 
     def fit(self, train_data: pd.DataFrame, tasks: List[str], keep_training_data: bool = True,
-            features: Optional[List[str]] = None) -> pd.DataFrame:
+            parameters: Optional[dict] = None, features: Optional[List[str]] = None) -> pd.DataFrame:
         """Uses the provided data to train the model to perform the specified classification task.
 
         Arguments:
@@ -173,6 +182,8 @@ class ClassificationModel:
             'hate_speech_detection', 'target_or_general', 'aggression_detection'.
         keep_training_data
             A boolean that indicates whether the training data should be stored on the model.
+        parameters
+            The dictionary of parameter values used to specify the model.
         features
             The list of features to be used in the classification task.
 
@@ -189,6 +200,8 @@ class ClassificationModel:
         # Save task list
         self.tasks = tasks
 
+
+
         # Fit and predict baseline model
         if self.model_type == 'baseline':
             if keep_training_data:
@@ -197,11 +210,26 @@ class ClassificationModel:
 
         # Fit and predict random forest classifier
         if self.model_type == 'random_forest':
+
+            # Save the model features
             assert features is not None, \
                 'The feature list must be provided in order to tran a Random Forest classification model.'
             self.features = features
+
+            # Save the default model parameters
+            self.model_params = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
+                                 'min_samples_split': 0.1, 'min_samples_leaf': 3, 'max_features': 'sqrt',
+                                 'bootstrap': True, 'n_jobs': None, 'random_state': 42,
+                                 'class_weight': 'balanced_subsample', 'max_samples': 0.2}
+            # Replace specified defaults and save the provided model parameters
+            for p in parameters.keys():
+                self.model_params[p] = parameters[p]
+
+            # Save the training data
             if keep_training_data:
                 self.train_data = train_data
+
+            # Train the model
             pred_df = self._fit_random_forest_model(train_data, features, tasks)
 
         # TODO: Add other sections below that reference helper methods to do any necessary processing and fit_predict
@@ -291,7 +319,3 @@ if __name__ == '__main__':
     # View a sample of the results
     train_df.head()
     val_df.head()
-
-
-
-

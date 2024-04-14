@@ -4,9 +4,12 @@ model can use to classify the tweets within the dataset.
 
 # Libraries
 import pandas as pd
+import scipy.stats as st
+
 from nrclex import NRCLex
-from typing import Optional
+from typing import Optional, List
 from nltk.tokenize import word_tokenize
+
 
 # Define class to perform feature engineering
 class FeatureEngineering:
@@ -27,6 +30,9 @@ class FeatureEngineering:
 
         # Set fit flag
         self.fitted = False
+
+        # Save normalization info
+        self.normalization_dict = {}
 
     def _NRC_counts(self, data: pd.DataFrame):
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
@@ -74,6 +80,99 @@ class FeatureEngineering:
         # data.to_csv('test.txt', sep=',', header=True)
 
         return data
+
+    def normalize_feature(self, data: pd.DataFrame, feature_columns: List[str], normalization_method: Optional[str] = None):
+        """Normalizes the features in the specified columns by transforming the data to fall within [0,1].
+
+        This can be done using a number of different approaches. The specific approach and relevant parameters needed to
+        perform normalization in downstream transformations are saved in the normalization_dict, which is keyed by the
+        feature column name.
+
+        Arguments:
+        ----------
+        data
+            The data for which the feature is to be generated
+        feature_columns
+            The column name(s) of the feature(s) to be normalized. If multiple column names are provided then the values
+            in both columns are simultaneously normalized.
+        normalization_method
+            Required when fitting. Specifies which calculation to use to normalize the features. Options include...
+            min_max:
+                Applies (x-min)/(max-min) transformation, capping the resulting values to fall within [0,1].
+            z_score:
+                Applies Norm.CDF((x-mu)/sigma) transformation. Values correspond to percentages from a normal
+                distribution.
+                #TODO: extend this method to use a more appropriate distribution than normal for certain features
+
+        Returns:
+        -------
+        transformed_data
+            The original train_data dataframe with new columns that include the normalized features for each observation
+            in the dataset.
+        """
+
+        # Initialize dictionary to hold normalized results
+        normalized_feats = {}
+
+        # Perform normalization transformations, assuming fitting has already occurred
+        if self.fitted:
+            for feat in feature_columns:
+
+                # If trained normalization method uses min-max approach
+                if self.normalization_dict[feat]['method'] == 'min_max':
+                    f_min = self.normalization_dict[feat]['params']['min']
+                    f_max = self.normalization_dict[feat]['params']['max']
+                    feat_vals = data[feat]
+                    norm_vals = (feat_vals - f_min) / (f_max - f_min)
+
+                # If trained normalization method uses z-score approach
+                if self.normalization_dict[feat]['method'] == 'z_score':
+                    sigma = self.normalization_dict[feat]['params']['sigma']
+                    mu = self.normalization_dict[feat]['params']['mu']
+                    feat_vals = data[feat]
+                    z_scores = (feat_vals - mu) / sigma
+                    norm_vals = st.norm.cdf(z_scores)
+
+                # Store results to be returned
+                normalized_feats[feat] = norm_vals
+
+        # Learn and apply normalization transformations
+        else:
+            for feat in feature_columns:
+                self.normalization_dict[feat] = {}
+                feat_vals = data[feat]
+
+                # If specified normalization method is min-max approach
+                if normalization_method == 'min_max':
+                    f_min = feat_vals.min()
+                    f_max = feat_vals.max()
+                    norm_vals = (feat_vals - f_min) / (f_max - f_min)
+                    # Save parameters for future transformations
+                    self.normalization_dict[feat]['method'] = 'min_max'
+                    self.normalization_dict[feat]['params'] = {'min': f_min, 'max': f_max}
+
+                # If specified normalization method is z-score approach
+                if normalization_method == 'z_score':
+                    sigma = feat_vals.std()
+                    mu = feat_vals.mean()
+                    z_scores = (feat_vals - mu) / sigma
+                    norm_vals = st.norm.cdf(z_scores)
+                    # Save parameters for future transformations
+                    self.normalization_dict['method'] = 'z_score'
+                    self.normalization_dict['params'] = {'sigma': sigma, 'mu': mu}
+
+                # Store results to be returned
+                normalized_feats[feat] = norm_vals
+
+        # Add normalized features to dataframe
+        n_cols = len(data.columns)
+        for k in normalized_feats.keys():
+            2+2
+
+        # n_cols = len(pred_df.columns)
+        # for t in task_cols:
+        #     pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+        #     n_cols += 1
 
     def fit_transform(self, train_data):
         """Learns all necessary information from the provided training data in order to generate the complete set of

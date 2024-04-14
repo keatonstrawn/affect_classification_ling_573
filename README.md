@@ -92,6 +92,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
     myClassifier = ClassificationModel('random_forest')
 
     # Train the model
+    # TODO: features list should be powered by the config file
     features = ['percent_capitals', '!_count', '?_count', '$_count', '*_count', 'negative', 'positive', 'anger',
                 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
     train_pred_rf = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False, 
