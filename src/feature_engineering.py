@@ -7,6 +7,16 @@ import pandas as pd
 from nrclex import NRCLex
 from typing import Optional
 from nltk.tokenize import word_tokenize
+# for fastText embeddings and GloVe
+from gensim.models import KeyedVectors
+import pandas as pd
+# for BERTweet                                      
+from transformers import AutoTokenizer, AutoModel
+import torch
+import numpy as np
+# for Universal Sentence Encoder                    
+#import tensorflow as tf
+#import tensorflow_hub as hub
 
 # Define class to perform feature engineering
 class FeatureEngineering:
@@ -74,6 +84,78 @@ class FeatureEngineering:
         # data.to_csv('test.txt', sep=',', header=True)
 
         return data
+    
+    # helper function to get fast text embeddings
+    def ft_embeddings(tweet, model):
+        # tokenize
+        words = tweet.split()
+        # retrieve embeddings if in the vocabulary
+        embeddings = [model[word] for word in words if word in model.key_to_index]
+        return embeddings
+
+    # turns all data into fastText word embeddings (size = 300), if they are in the selected corpus
+    def get_fasttext_embeddings(df):
+        # get the model from a preloaded corpus
+        model_path = '~/Desktop/wiki-news-300d-1M.vec'
+        model = KeyedVectors.load_word2vec_format(model_path)
+
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: ft_embeddings(tweet, model))
+
+    # helper function to get BERTweet embeddings
+    def bt_embeddings(tweet, model, tokenizer):
+        #inputs = tokenizer(tweet, return_tensors='pt', padding=True, truncation=True)
+        tokens = tokenizer.tokenize(tweet)
+        input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        with torch.no_grad():
+            outputs = model(torch.tensor([input_ids]))
+        embeddings = outputs.last_hidden_state[0]
+        embeddings_np = embeddings.detach().numpy()
+        word_embeddings_list = [embeddings_np[i].tolist() for i in range(len(tokens))]
+        return word_embeddings_list
+
+    # gets BERTweet embeddings for each word in each sentence of the dataframe
+    def get_bertweet_embeddings(df):
+        # load tokenizer and model
+        model = AutoModel.from_pretrained("vinai/bertweet-base")
+        tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
+
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: bt_embeddings(tweet, model, tokenizer))
+
+    # helper function for glove embeddings
+    def g_embeddings(tweet, embeddings_index):
+        # tokenize
+        words = tweet.split()
+        # retrieve embeddings if they are in the model
+        embeddings = [embeddings_index[word] for word in words if word in embeddings_index.keys()]
+        return embeddings
+
+    # load embeddings manually
+    def load_glove_embeddings(file_path):
+        embeddings_index = {}
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                values = line.split()
+                word = values[0]
+                coefs = np.asarray(values[1:], dtype='float32')
+                embeddings_index[word] = coefs
+        return embeddings_index
+
+    def get_glove_embeddings(df):
+        # Construct and print absolute path to the GloVe file
+        glove_file_path = os.path.expanduser('~/Desktop/glove.twitter.27B/glove.twitter.27B.25d.txt')
+    
+        embeddings = load_glove_embeddings(glove_file_path)
+        
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: g_embeddings(tweet, embeddings))    
+
+    def get_universal_sent_embeddings(df):
+        embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['Universal_Sentence_Encoder_embeddings'] = df['cleaned_text'].apply(embed)
 
     def fit_transform(self, train_data):
         """Learns all necessary information from the provided training data in order to generate the complete set of
