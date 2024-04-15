@@ -127,7 +127,7 @@ class FeatureEngineering:
             
         return embeddings
 
-    def get_fasttext_embeddings(self, df):
+    def get_fasttext_embeddings(self, df, embedding_file_path):
         """Function to get FastText embeddings from a dataframe and automatically add them to this dataframe. These
         are pretrained embeddings with d_e == 300 
 
@@ -135,6 +135,8 @@ class FeatureEngineering:
         ---------
         df
             Pandas dataframe containing the preprocessed data
+        embedding_file_path
+            File path for the embeddings file
 
         Returns:
         -------
@@ -142,8 +144,7 @@ class FeatureEngineering:
 
         """
         # get the model from a preloaded corpus
-        model_path = '~/Desktop/wiki-news-300d-1M.vec'
-        model = KeyedVectors.load_word2vec_format(model_path)
+        model = KeyedVectors.load_word2vec_format(embeddings_file_path)
 
         # get the embeddings for each row and save to a new column in the dataframe
         df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: embeddings_helper(tweet, model, '1'))
@@ -169,7 +170,7 @@ class FeatureEngineering:
         # get the embeddings for each row and save to a new column in the dataframe
         df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: bt_embeddings_helper(tweet, model, '2', tokenizer))
 
-    def get_glove_embeddings(self, df):
+    def get_glove_embeddings(self, df, embedding_file_path):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
         are pretrained embeddings with d_e == 300.
 
@@ -177,18 +178,17 @@ class FeatureEngineering:
         ---------
         df
             Pandas dataframe containing the preprocessed data
+        embedding_file_path
+            File path for the embeddings file
 
         Returns:
         -------
         Nothing
 
         """
-        # Construct and print absolute path to the GloVe file
-        glove_file_path = '~/Desktop/glove.twitter.27B/glove.twitter.27B.25d.txt'
-
         # load embeddings and make a dict
         embeddings_index = {}
-        with open(glove_file_path, 'r', encoding='utf-8') as f:
+        with open(embedding_file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 values = line.split()
                 word = values[0]
