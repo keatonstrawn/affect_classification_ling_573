@@ -14,7 +14,7 @@ import pandas as pd
 from transformers import AutoTokenizer, AutoModel
 import torch
 import numpy as np
-# for Universal Sentence Encoder                    
+# for Universal Sentence Encoder -- need to add tensorflow to environment.yml file                   
 #import tensorflow as tf
 #import tensorflow_hub as hub
 
@@ -85,73 +85,135 @@ class FeatureEngineering:
 
         return data
     
-    # helper function to get fast text embeddings
-    def ft_embeddings(tweet, model):
+    def embeddings_helper(self, tweet, model, embedding_type, tokenizer=None):
+        """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
+        from model/dictionary.
+
+        Arguments:
+        ---------
+        tweet
+            The line of the data to generate embeddings for
+        model
+            The dictionary of FastText embeddings
+        embedding_type
+            '1' == FastText
+            '2' == BERTweet
+            '3' (or anything else) == GloVe
+        tokenizer
+            Optional Tokenizer for BERTweet embeddings
+
+        Returns:
+        -------
+        A list of the word embeddings for each word in the input tweet.
+
+        """
         # tokenize
         words = tweet.split()
-        # retrieve embeddings if in the vocabulary
-        embeddings = [model[word] for word in words if word in model.key_to_index]
+        
+        # retrieve embeddings if in the vocabulary/model
+        if embedding_type == '1':
+            embeddings = [model[word] for word in words if word in model.key_to_index]
+        elif embedding_type == '2':
+            # different form of tokenizing
+            tokens = tokenizer.tokenize(tweet)
+            input_ids = tokenizer.convert_tokens_to_ids(tokens)
+            with torch.no_grad():
+                outputs = model(torch.tensor([input_ids]))
+            embed = outputs.last_hidden_state[0]
+            embed_np = embeddings.detach().numpy()
+            embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
+        else:
+            embeddings = [model[word] for word in words if word in model.keys()]
+            
         return embeddings
 
-    # turns all data into fastText word embeddings (size = 300), if they are in the selected corpus
-    def get_fasttext_embeddings(df):
+    def get_fasttext_embeddings(self, df):
+        """Function to get FastText embeddings from a dataframe and automatically add them to this dataframe. These
+        are pretrained embeddings with d_e == 300 
+
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+
+        Returns:
+        -------
+        Nothing
+
+        """
         # get the model from a preloaded corpus
         model_path = '~/Desktop/wiki-news-300d-1M.vec'
         model = KeyedVectors.load_word2vec_format(model_path)
 
         # get the embeddings for each row and save to a new column in the dataframe
-        df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: ft_embeddings(tweet, model))
+        df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: embeddings_helper(tweet, model, '1'))
 
-    # helper function to get BERTweet embeddings
-    def bt_embeddings(tweet, model, tokenizer):
-        #inputs = tokenizer(tweet, return_tensors='pt', padding=True, truncation=True)
-        tokens = tokenizer.tokenize(tweet)
-        input_ids = tokenizer.convert_tokens_to_ids(tokens)
-        with torch.no_grad():
-            outputs = model(torch.tensor([input_ids]))
-        embeddings = outputs.last_hidden_state[0]
-        embeddings_np = embeddings.detach().numpy()
-        word_embeddings_list = [embeddings_np[i].tolist() for i in range(len(tokens))]
-        return word_embeddings_list
+    def get_bertweet_embeddings(self, df):
+        """Function to get BERTweet embeddings from a dataframe and automatically add them to this dataframe.
+        These embeddings are learned from a model, with d_e == ?? (probably should know this)
 
-    # gets BERTweet embeddings for each word in each sentence of the dataframe
-    def get_bertweet_embeddings(df):
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+
+        Returns:
+        -------
+        Nothing
+
+        """
         # load tokenizer and model
         model = AutoModel.from_pretrained("vinai/bertweet-base")
         tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
 
         # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: bt_embeddings(tweet, model, tokenizer))
+        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: bt_embeddings_helper(tweet, model, '2', tokenizer))
 
-    # helper function for glove embeddings
-    def g_embeddings(tweet, embeddings_index):
-        # tokenize
-        words = tweet.split()
-        # retrieve embeddings if they are in the model
-        embeddings = [embeddings_index[word] for word in words if word in embeddings_index.keys()]
-        return embeddings
+    def get_glove_embeddings(self, df):
+        """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
+        are pretrained embeddings with d_e == 300.
 
-    # load embeddings manually
-    def load_glove_embeddings(file_path):
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+
+        Returns:
+        -------
+        Nothing
+
+        """
+        # Construct and print absolute path to the GloVe file
+        glove_file_path = '~/Desktop/glove.twitter.27B/glove.twitter.27B.25d.txt'
+
+        # load embeddings and make a dict
         embeddings_index = {}
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(glove_file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 values = line.split()
                 word = values[0]
                 coefs = np.asarray(values[1:], dtype='float32')
                 embeddings_index[word] = coefs
-        return embeddings_index
-
-    def get_glove_embeddings(df):
-        # Construct and print absolute path to the GloVe file
-        glove_file_path = os.path.expanduser('~/Desktop/glove.twitter.27B/glove.twitter.27B.25d.txt')
-    
-        embeddings = load_glove_embeddings(glove_file_path)
         
         # get the embeddings for each row and save to a new column in the dataframe
-        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: g_embeddings(tweet, embeddings))    
+        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: g_embeddings_helper(tweet, embeddings_index, '3'))    
 
-    def get_universal_sent_embeddings(df):
+    def get_universal_sent_embeddings(self, df):
+        """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
+        to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of 
+        d_e == 512. 
+
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+
+        Returns:
+        -------
+        Nothing
+
+        """
+        # load the embeddings from tensorflow hub
         embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
 
         # get the embeddings for each row and save to a new column in the dataframe
