@@ -1,9 +1,9 @@
 {
   "document_processing": {
         "input_tsv_files": {
-            "filepath": "../data",
-            "training": "../data/train_en.tsv" ,
-            "devtest": "../data/dev_en.tsv" ,
+            "filepath": "data",
+            "training": "data/train_en.tsv" ,
+            "devtest": "data/dev_en.tsv" ,
             "language": "english"
         }
   },
