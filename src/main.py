@@ -96,6 +96,7 @@ def main(config):
   
     # Instantiate the FeatureEngineering object
     myFE = FeatureEngineering(config['model']['feature_engineering']['approach'])
+
     # Fit
     train_df = myFE.fit_transform(myDP.processed_data['train'])
     # Transform
@@ -109,17 +110,22 @@ def main(config):
 
     # Instantiate the model
     myClassifier = ClassificationModel(config['model']['classification']['approach'])
-    
+
     # Train the model
-    train_pred = myClassifier.fit(train_df, tasks=[config['model']['classification']['params']['task1']], 
-                                  keep_training_data=config['model']['classification']['params']['keep_training_data'])
+    features = ['percent_capitals', '!_count', '?_count', '$_count', '*_count', 'negative', 'positive', 'anger',
+                'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
+    
+    train_pred = myClassifier.fit(train_df,
+                                  tasks=config['model']['classification']['params']['tasks'],
+                                  keep_training_data=config['model']['classification']['params']['keep_training_data'],
+                                  features=features)
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
     # View a sample of the results
-    train_pred.head()
-    val_pred.head()   
+    train_df.head()
+    val_df.head()
 
     # create evaluation files based on val_pred
     make_eval_files(val_pred, input_tsv_files['language'])
