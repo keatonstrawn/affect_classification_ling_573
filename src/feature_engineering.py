@@ -11,7 +11,7 @@ from nltk.tokenize import word_tokenize
 from gensim.models import KeyedVectors
 import pandas as pd
 # for BERTweet                                      
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase
 import torch
 import numpy as np
 # for Universal Sentence Encoder -- need to add tensorflow to environment.yml file                   
@@ -85,7 +85,7 @@ class FeatureEngineering:
 
         return data
     
-    def embeddings_helper(self, tweet, model, embedding_type, tokenizer=None):
+    def embeddings_helper(self, tweet: str, model, embedding_type: str, tokenizer: Optional[PreTrainedTokenizerBase] = None):
         """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
         from model/dictionary.
 
@@ -94,7 +94,7 @@ class FeatureEngineering:
         tweet
             The line of the data to generate embeddings for
         model
-            The dictionary of FastText embeddings
+            The dictionary of FastText embeddings, as either a Dict or an instance of KeyedVectors from gensim
         embedding_type
             '1' == FastText
             '2' == BERTweet
@@ -127,7 +127,7 @@ class FeatureEngineering:
             
         return embeddings
 
-    def get_fasttext_embeddings(self, df, embedding_file_path):
+    def get_fasttext_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get FastText embeddings from a dataframe and automatically add them to this dataframe. These
         are pretrained embeddings with d_e == 300 
 
@@ -144,12 +144,12 @@ class FeatureEngineering:
 
         """
         # get the model from a preloaded corpus
-        model = KeyedVectors.load_word2vec_format(embeddings_file_path)
+        model = KeyedVectors.load_word2vec_format(embedding_file_path)
 
         # get the embeddings for each row and save to a new column in the dataframe
-        df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: embeddings_helper(tweet, model, '1'))
+        df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '1'))
 
-    def get_bertweet_embeddings(self, df):
+    def get_bertweet_embeddings(self, df: pd.DataFrame):
         """Function to get BERTweet embeddings from a dataframe and automatically add them to this dataframe.
         These embeddings are learned from a model, with d_e == ?? (probably should know this)
 
@@ -168,9 +168,9 @@ class FeatureEngineering:
         tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
 
         # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: embeddings_helper(tweet, model, '2', tokenizer))
+        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '2', tokenizer))
 
-    def get_glove_embeddings(self, df, embedding_file_path):
+    def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
         are pretrained embeddings with d_e == 300.
 
@@ -196,9 +196,9 @@ class FeatureEngineering:
                 embeddings_index[word] = coefs
         
         # get the embeddings for each row and save to a new column in the dataframe
-        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: embeddings_helper(tweet, embeddings_index, '3'))    
+        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, embeddings_index, '3'))    
 
-    def get_universal_sent_embeddings(self, df):
+    def get_universal_sent_embeddings(self, df: pd.DataFrame):
         """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
         to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of 
         d_e == 512. 
