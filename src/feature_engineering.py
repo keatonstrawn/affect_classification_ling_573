@@ -120,7 +120,7 @@ class FeatureEngineering:
             with torch.no_grad():
                 outputs = model(torch.tensor([input_ids]))
             embed = outputs.last_hidden_state[0]
-            embed_np = embeddings.detach().numpy()
+            embed_np = embed.detach().numpy()
             embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
         else:
             embeddings = [model[word] for word in words if word in model.keys()]
@@ -168,7 +168,7 @@ class FeatureEngineering:
         tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
 
         # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: bt_embeddings_helper(tweet, model, '2', tokenizer))
+        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: embeddings_helper(tweet, model, '2', tokenizer))
 
     def get_glove_embeddings(self, df, embedding_file_path):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
@@ -196,7 +196,7 @@ class FeatureEngineering:
                 embeddings_index[word] = coefs
         
         # get the embeddings for each row and save to a new column in the dataframe
-        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: g_embeddings_helper(tweet, embeddings_index, '3'))    
+        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: embeddings_helper(tweet, embeddings_index, '3'))    
 
     def get_universal_sent_embeddings(self, df):
         """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
