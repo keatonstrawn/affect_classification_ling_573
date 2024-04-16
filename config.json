@@ -12,9 +12,9 @@
             "approach": "_NRC_counts"
         },
         "classification": {
-            "approach": "Random_Forest" ,
+            "approach": "random_forest" ,
             "params": {
-                "task1": "hate_speech_detection" ,
+                "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
                 "keep_training_data": "False" ,
                 "param3": "put_param_here"
             }
