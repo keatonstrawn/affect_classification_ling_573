@@ -11,12 +11,13 @@ from nltk.tokenize import word_tokenize
 from gensim.models import KeyedVectors
 import pandas as pd
 # for BERTweet                                      
-from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase
+from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
 import torch
 import numpy as np
 # for Universal Sentence Encoder -- need to add tensorflow to environment.yml file                   
 #import tensorflow as tf
 #import tensorflow_hub as hub
+from typing import List, Union, Optional
 
 # Define class to perform feature engineering
 class FeatureEngineering:
@@ -85,7 +86,8 @@ class FeatureEngineering:
 
         return data
     
-    def embeddings_helper(self, tweet: str, model, embedding_type: str, tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
+    def embeddings_helper(self, tweet: str, model: Union[Dict, KeyedVectors, PreTrainedModel], embedding_type: str, 
+                          tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
         """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
         from model/dictionary.
 
