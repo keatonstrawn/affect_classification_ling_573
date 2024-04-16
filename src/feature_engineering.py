@@ -85,7 +85,7 @@ class FeatureEngineering:
 
         return data
     
-    def embeddings_helper(self, tweet: str, model, embedding_type: str, tokenizer: Optional[PreTrainedTokenizerBase] = None):
+    def embeddings_helper(self, tweet: str, model, embedding_type: str, tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
         """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
         from model/dictionary.
 
