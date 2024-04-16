@@ -222,8 +222,9 @@ class ClassificationModel:
                                  'bootstrap': True, 'n_jobs': None, 'random_state': 42,
                                  'class_weight': 'balanced_subsample', 'max_samples': 0.2}
             # Replace specified defaults and save the provided model parameters
-            for p in parameters.keys():
-                self.model_params[p] = parameters[p]
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
 
             # Save the training data
             if keep_training_data:

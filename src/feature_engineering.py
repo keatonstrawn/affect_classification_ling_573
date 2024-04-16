@@ -34,7 +34,7 @@ class FeatureEngineering:
         # Save normalization info
         self.normalization_dict = {}
 
-    def _NRC_counts(self, data: pd.DataFrame):
+    def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
         positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
@@ -81,7 +81,8 @@ class FeatureEngineering:
 
         return data
 
-    def normalize_feature(self, data: pd.DataFrame, feature_columns: List[str], normalization_method: Optional[str] = None):
+    def normalize_feature(self, data: pd.DataFrame, feature_columns: List[str],
+                          normalization_method: Optional[str] = None) -> pd.DataFrame:
         """Normalizes the features in the specified columns by transforming the data to fall within [0,1].
 
         This can be done using a number of different approaches. The specific approach and relevant parameters needed to
@@ -124,6 +125,9 @@ class FeatureEngineering:
                     f_max = self.normalization_dict[feat]['params']['max']
                     feat_vals = data[feat]
                     norm_vals = (feat_vals - f_min) / (f_max - f_min)
+                    # Cap any extreme values that fall outside the range seen in the training data
+                    norm_vals[norm_vals > 1.0] = 1.0
+                    norm_vals[norm_vals < 0.0] = 0.0
 
                 # If trained normalization method uses z-score approach
                 if self.normalization_dict[feat]['method'] == 'z_score':
@@ -158,8 +162,8 @@ class FeatureEngineering:
                     z_scores = (feat_vals - mu) / sigma
                     norm_vals = st.norm.cdf(z_scores)
                     # Save parameters for future transformations
-                    self.normalization_dict['method'] = 'z_score'
-                    self.normalization_dict['params'] = {'sigma': sigma, 'mu': mu}
+                    self.normalization_dict[feat]['method'] = 'z_score'
+                    self.normalization_dict[feat]['params'] = {'sigma': sigma, 'mu': mu}
 
                 # Store results to be returned
                 normalized_feats[feat] = norm_vals
@@ -167,14 +171,12 @@ class FeatureEngineering:
         # Add normalized features to dataframe
         n_cols = len(data.columns)
         for k in normalized_feats.keys():
-            2+2
+            data.insert(loc=n_cols, column=f'{k}_normalized', value=normalized_feats[k])
+            n_cols += 1
 
-        # n_cols = len(pred_df.columns)
-        # for t in task_cols:
-        #     pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
-        #     n_cols += 1
+        return data
 
-    def fit_transform(self, train_data):
+    def fit_transform(self, train_data: pd.DataFrame) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -194,9 +196,13 @@ class FeatureEngineering:
         # Get the training data, to be used for fitting
         self.train_data = train_data
 
-        # Framework to add in steps for each feature that is to be generated
-        # transformed_data = self._example_feature1_method(train_data, fit=True, other_args=None)
-        transformed_data = self._NRC_counts(train_data)
+        # Normalize count features from data cleaning process
+        transformed_data = self.normalize_feature(data=train_data,
+                                                  feature_columns=['!_count', '?_count', '$_count', '*_count'],
+                                                  normalization_method='z_score')
+
+        # Get NRC (emotion and sentiment word) counts feature
+        transformed_data = self._NRC_counts(transformed_data)
 
         # TODO: add in code below to fit and transform training data to generate other features as they are added
 
@@ -205,7 +211,7 @@ class FeatureEngineering:
 
         return transformed_data
 
-    def transform(self, data):
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
         """Uses the feature-generating methods that were fit in an earlier step to transform a new dataset to include
         the feature-set expected by the classification model.
 
@@ -224,8 +230,12 @@ class FeatureEngineering:
         # Ensure feature generating methods have been trained prior to transforming the data
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
+        # Normalize count features from data cleaning process
+        transformed_data = self.normalize_feature(data=data,
+                                                  feature_columns=['!_count', '?_count', '$_count', '*_count'])
+
         # Framework to add in steps for each feature that is to be generated
-        transformed_data = self._NRC_counts(data)
+        transformed_data = self._NRC_counts(transformed_data)
 
         # TODO: add in code below to transform datasets to generate other features as they are added
 
