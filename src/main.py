@@ -30,7 +30,8 @@ def load_config(config_path):
 
 def make_eval_files(df, language):
     """
-    Transform dataframes into desired formatted .tsv files for evaluation script
+    Transform dataframes into desired formatted .tsv files for evaluation script. Includes the tweet ID, cleaned text,
+    and either the gold standard data on HS, TR, and AG, or their predicted values from the model.
 
     Args:
         df (pandas dataframe): a dataframe containing both the gold standard and prediction classifications
@@ -45,24 +46,14 @@ def make_eval_files(df, language):
     elif language == "spanish":
         lang = "es"
 
-
-    # with open("test2.txt", "w") as f:
-    #     # f.write(str(df.head()))
-    #     f.write(str(list(df.columns.values)))
-
-    # df.to_csv("test2.tsv", sep="\t")
     # TASK A
     # split dataframe into gold and prediction dataframes
-    # gold_df = df.iloc[:, [0] + list(df.columns.get_loc(c) for c in ["cleaned_text", "HS", "TR", "AG"])].copy()
-    # pred_a_df = df.iloc[:, [0] + list(df.columns.get_loc(c) for c in ["HS_prediction"])].copy()
-    # gold_df = df[:, [0, 2, 3, 4, 6]].copy()
-    # pred_a_df = df[:, []]
     gold_df = df[["cleaned_text", "HS", "TR", "AG"]].copy()
     pred_a_df = df[["HS_prediction"]].copy()
 
     # establish file paths, save dataframes as .tsv files
-    goldpath = "".join(["../results/input/ref/", lang, ".tsv"])
-    predpath_a = "".join(["../results/input/res/", lang, "_a.tsv"])
+    goldpath = "".join(["results/input/ref/", lang, ".tsv"])
+    predpath_a = "".join(["results/input/res/", lang, "_a.tsv"])
     gold_df.to_csv(goldpath, sep="\t") 
     pred_a_df.to_csv(predpath_a, sep="\t")
 
@@ -72,7 +63,7 @@ def make_eval_files(df, language):
     # pred_b_df = df[["cleaned_text", "HS_prediction", "TR_prediction", "AG_prediction"]].copy()
 
     # # establish file path, save dataframe as .tsv files
-    # predpath_b = "".join(["../results/input/res", lang, "_b.tsv"])
+    # predpath_b = "".join(["results/input/res", lang, "_b.tsv"])
     # pred_b_df.to_csv(predpath_b, sep="\t")
 
 
@@ -113,10 +104,10 @@ def main(config):
     val_df = myFE.transform(myDP.processed_data['validation'])
 
     # View a sample of the results
-    with open("test.txt", "w") as f:
-        f.write(str(train_df.head()))
-        f.write("\t")
-        f.write(str(val_df.head()))
+    # with open("test.txt", "w") as f:
+    #     f.write(str(train_df.head()))
+    #     f.write("\t")
+    #     f.write(str(val_df.head()))
 
     # # Instantiate the model
     # myClassifier = ClassificationModel(config['model']['classification']['approach'])
@@ -141,27 +132,26 @@ def main(config):
     myClassifier = ClassificationModel('baseline')
 
     # Train the model
-    train_pred = myClassifier.fit(train_df, 
-                                  tasks=['hate_speech_detection'], 
-                                  keep_training_data=False)
+    train_pred = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
     # View a sample of the results
-    train_df.head()
-    val_df.head()
+    # train_df.head()
+    # val_df.head()
 
     # create evaluation files based on val_pred
     make_eval_files(val_pred, input_tsv_files['language'])
 
     # Instantiate the evaluator and run it
-    myEvaluator = Evaluator("../results/input", "../results/output")
+    myEvaluator = Evaluator("results/input", "results/output")
     myEvaluator.main()
     
        
 
 
 if __name__ == "__main__":
-    config = load_config(config_path= os.path.join('..', 'config.json'))
+    # config = load_config(config_path= os.path.join('..', 'config.json'))
+    config = load_config(config_path='config.json')
     main(config)

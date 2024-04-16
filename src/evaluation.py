@@ -31,10 +31,10 @@ class Evaluator:
         levels = ["HS"]
 
         ground_truth = pd.read_csv(gold, sep="\t", names=["ID", "Tweet-text", "HS", "TargetRange", "Aggressiveness"],
-                                converters={0: str, 1: str, 2: int, 3: int, 4: int}, header=None)
+                                converters={0: str, 1: str, 2: int, 3: int, 4: int}, header=None, skiprows=1)
 
         predicted = pd.read_csv(pred, sep="\t", names=["ID"] + levels ,
-                                converters={0: str, 1: int}, header=None)
+                                converters={0: str, 1: int}, header=None, skiprows=1)
 
         # Check length files
         if (len(ground_truth) != len(predicted)):
@@ -61,10 +61,10 @@ class Evaluator:
         levels = ["HS", "TargetRange", "Aggressiveness"]
 
         ground_truth = pd.read_csv(gold, sep="\t", names=["ID", "Tweet-text", "HS", "TargetRange", "Aggressiveness"],
-                                converters={0: str, 1: str, 2: int, 3: int, 4: int}, header=None)
+                                converters={0: str, 1: str, 2: int, 3: int, 4: int}, header=None, skiprows=1)
 
         predicted = pd.read_csv(pred, sep="\t", names=["ID"] + levels,
-                                converters={0: str, 1: int, 2: int, 3: int}, header=None)
+                                converters={0: str, 1: int, 2: int, 3: int}, header=None, skiprows=1)
 
         # Check length files
         if (len(ground_truth) != len(predicted)):
@@ -116,7 +116,7 @@ class Evaluator:
         submission_path = os.path.join(res_dir, os.listdir(res_dir)[0])
         task = submission_path.split('/')[-1].replace('.tsv', '').split('_')[1]
 
-        output_file = open(os.path.join(self.output_dir, 'scores.txt'), "wb")
+        output_file = open(os.path.join(self.output_dir, 'scores.txt'), "w")
         if task == 'a':
             acc_hs, p_hs, r_hs, f1_hs = self.evaluate_a(submission_path, gold_standard)
 
