@@ -3,12 +3,20 @@ model can use to classify the tweets within the dataset.
 """
 
 # Libraries
+import torch
+import numpy as np
 import pandas as pd
 import scipy.stats as st
 
 from nrclex import NRCLex
-from typing import Optional, List
 from nltk.tokenize import word_tokenize
+from gensim.models import KeyedVectors
+from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
+from typing import List, Union, Optional, Dict
+
+# for Universal Sentence Encoder -- need to add tensorflow to environment.yml file
+#import tensorflow as tf
+#import tensorflow_hub as hub
 
 
 # Define class to perform feature engineering
@@ -80,6 +88,141 @@ class FeatureEngineering:
         # data.to_csv('test.txt', sep=',', header=True)
 
         return data
+
+    def embeddings_helper(self, tweet: str, model: Union[Dict, KeyedVectors, PreTrainedModel], embedding_type: str,
+                          tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
+        """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
+        from model/dictionary.
+
+        Arguments:
+        ---------
+        tweet
+            The line of the data to generate embeddings for
+        model
+            The dictionary of FastText embeddings, as either a Dict or an instance of KeyedVectors from gensim
+        embedding_type
+            '1' == FastText
+            '2' == BERTweet
+            '3' (or anything else) == GloVe
+        tokenizer
+            Optional Tokenizer for BERTweet embeddings
+
+        Returns:
+        -------
+        A list of the word embeddings for each word in the input tweet.
+
+        """
+        # tokenize
+        words = tweet.split()
+
+        # retrieve embeddings if in the vocabulary/model
+        if embedding_type == '1':
+            embeddings = [model[word] for word in words if word in model.key_to_index]
+        elif embedding_type == '2':
+            # different form of tokenizing
+            tokens = tokenizer.tokenize(tweet)
+            input_ids = tokenizer.convert_tokens_to_ids(tokens)
+            with torch.no_grad():
+                outputs = model(torch.tensor([input_ids]))
+            embed = outputs.last_hidden_state[0]
+            embed_np = embed.detach().numpy()
+            embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
+        else:
+            embeddings = [model[word] for word in words if word in model.keys()]
+
+        return embeddings
+
+    def get_fasttext_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
+        """Function to get FastText embeddings from a dataframe and automatically add them to this dataframe. These
+        are pretrained embeddings with d_e == 300
+
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+        embedding_file_path
+            File path for the embeddings file
+
+        Returns:
+        -------
+        Nothing
+
+        """
+        # get the model from a preloaded corpus
+        model = KeyedVectors.load_word2vec_format(embedding_file_path)
+
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '1'))
+
+    def get_bertweet_embeddings(self, df: pd.DataFrame):
+        """Function to get BERTweet embeddings from a dataframe and automatically add them to this dataframe.
+        These embeddings are learned from a model, with d_e == ?? (probably should know this)
+
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+
+        Returns:
+        -------
+        Nothing
+
+        """
+        # load tokenizer and model
+        model = AutoModel.from_pretrained("vinai/bertweet-base")
+        tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
+
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '2', tokenizer))
+
+    def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
+        """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
+        are pretrained embeddings with d_e == 300.
+
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+        embedding_file_path
+            File path for the embeddings file
+
+        Returns:
+        -------
+        Nothing
+
+        """
+        # load embeddings and make a dict
+        embeddings_index = {}
+        with open(embedding_file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                values = line.split()
+                word = values[0]
+                coefs = np.asarray(values[1:], dtype='float32')
+                embeddings_index[word] = coefs
+
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, embeddings_index, '3'))
+
+    def get_universal_sent_embeddings(self, df: pd.DataFrame):
+        """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
+        to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of
+        d_e == 512.
+
+        Arguments:
+        ---------
+        df
+            Pandas dataframe containing the preprocessed data
+
+        Returns:
+        -------
+        Nothing
+
+        """
+        # load the embeddings from tensorflow hub
+        embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['Universal_Sentence_Encoder_embeddings'] = df['cleaned_text'].apply(embed)
 
     def normalize_feature(self, data: pd.DataFrame, feature_columns: List[str],
                           normalization_method: Optional[str] = None) -> pd.DataFrame:
