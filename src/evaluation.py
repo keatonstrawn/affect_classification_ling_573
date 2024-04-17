@@ -132,6 +132,7 @@ class Evaluator:
             print("taskA_recall: {0}".format(r_hs))
             print("taskA_accuracy: {0}".format(acc_hs))
         elif task == 'b':
+            output_file.write("\n\nBeginning to evaluate task b:")
             macro_f1, emr, acc_levels, p_levels, r_levels, f1_levels = self.evaluate_b(submission_path, gold_standard)
 
             # the scores for the leaderboard must be in a file named "scores.txt"

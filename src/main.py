@@ -63,7 +63,7 @@ def make_eval_files(df, language):
     pred_b_df = df[["cleaned_text", "HS_prediction", "TR_prediction", "AG_prediction"]].copy()
 
     # establish file path, save dataframe as .tsv files
-    predpath_b = "".join(["results/input/res", lang, "_b.tsv"])
+    predpath_b = "".join(["results/input/res/", lang, "_b.tsv"])
     pred_b_df.to_csv(predpath_b, sep="\t")
 
 
@@ -108,42 +108,27 @@ def main(config):
     val_df = myFE.transform(myDP.processed_data['validation'])
 
     # View a sample of the results
-    with open("test.txt", "w") as f:
-        f.write(str(train_df.head()))
-        f.write("\t")
-        f.write(str(val_df.head()))
+    train_df.to_csv("train.csv")
+    val_df.to_csv("val.csv")
 
     # Instantiate the model
-    # myClassifier = ClassificationModel(config['model']['classification']['approach'])
-    myClassifier = ClassificationModel('baseline')
+    myClassifier = ClassificationModel(config['model']['classification']['approach'])
     
 
     # Train the model
     features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized',
                 '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy',
                 'sadness', 'surprise', 'trust']
+    embedding_features = ['GloVe_embeddings', 'Aggregate_embeddings']
+
     train_pred = myClassifier.fit(train_df,
                                 tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
                                 keep_training_data=False,
-                                features=features)
+                                features=features,
+                                embedding_features=embedding_features)
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
-
-    # # Instantiate the model
-    # myClassifier = ClassificationModel(config['model']['classification']['approach'])
-
-    # # Train the model
-    # features = ['percent_capitals', '!_count', '?_count', '$_count', '*_count', 'negative', 'positive', 'anger',
-    #             'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
-    
-    # train_pred = myClassifier.fit(train_df,
-    #                               tasks=config['model']['classification']['params']['tasks'],
-    #                               keep_training_data=config['model']['classification']['params']['keep_training_data'],
-    #                               features=features)
-
-    # # Run the model on the validation data
-    # val_pred = myClassifier.predict(val_df)
 
     # View a sample of the results
     train_df.head()
