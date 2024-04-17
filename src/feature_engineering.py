@@ -46,7 +46,7 @@ def get_embedding_ave(embedding_list: List[np.array], embedding_dim: int) -> np.
 # Define class to perform feature engineering
 class FeatureEngineering:
 
-    def __init__(self):
+    def __init__(self, approach="_NRC_counts"):
         """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in
         SemEval 2019 task 5.
 
@@ -56,12 +56,13 @@ class FeatureEngineering:
             * example feature2 --> fill this in with actual feature
             * example feature3 --> fill this in with actual feature
         """
-
+        
         # Initialize the cleaned datasets
         self.train_data: Optional[pd.DataFrame] = None
 
         # Set fit flag
         self.fitted = False
+
 
         # Save normalization info
         self.normalization_dict = {}
@@ -71,6 +72,7 @@ class FeatureEngineering:
         self.embedding_dim = None
 
     def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
+
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
         positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
@@ -371,10 +373,12 @@ class FeatureEngineering:
         # Get the training data, to be used for fitting
         self.train_data = train_data
 
+
         # Normalize count features from data cleaning process
         transformed_data = self.normalize_feature(data=train_data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'],
                                                   normalization_method='z_score')
+
 
         # Get NRC (emotion and sentiment word) counts feature
         transformed_data = self._NRC_counts(transformed_data)
@@ -391,7 +395,9 @@ class FeatureEngineering:
 
         return transformed_data
 
+
     def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+
         """Uses the feature-generating methods that were fit in an earlier step to transform a new dataset to include
         the feature-set expected by the classification model.
 
@@ -410,12 +416,14 @@ class FeatureEngineering:
         # Ensure feature generating methods have been trained prior to transforming the data
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
+
         # Normalize count features from data cleaning process
         transformed_data = self.normalize_feature(data=data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
 
         # Get NRC values
         transformed_data = self._NRC_counts(transformed_data)
+
 
         # Get Glove embeddings and aggregate across all words
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
@@ -424,31 +432,32 @@ class FeatureEngineering:
 
         return transformed_data
 
+''' The lines below are commented out so that all code is run through main.py
+'''
+# if __name__ == '__main__':
 
-if __name__ == '__main__':
-
-    # Imports
-    from data_processor import DataProcessor
-
-    # Load and clean the raw data
-    myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-    myDP.clean_data()
-
-    # Instantiate the FeatureEngineering object
-    myFE = FeatureEngineering()
-
-    # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
-                                  embedding_dim=25)
-    # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
-    # local machine to run this portion of the system.
-
-    # Transform
-    val_df = myFE.transform(myDP.processed_data['validation'])
-
-    # View a sample of the results
-    train_df.head()
-    val_df.head()
+#     # Imports
+#     from data_processor import DataProcessor
 
 
+#     # Load and clean the raw data
+#     myDP = DataProcessor()
+#     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+#     myDP.clean_data()
+
+
+#     # Instantiate the FeatureEngineering object
+#     myFE = FeatureEngineering()
+
+      # Fit
+      train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
+                                    embedding_dim=25)
+      # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+      # local machine to run this portion of the system.
+
+#     # Transform
+#     val_df = myFE.transform(myDP.processed_data['validation'])
+
+#     # View a sample of the results
+#     train_df.head()
+#     val_df.head()
