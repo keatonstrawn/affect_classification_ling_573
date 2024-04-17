@@ -98,3 +98,14 @@ Alternatively, users can run the main.py script, which executes the workflow des
    ```python
    # Put ModelEvaluator-affiliated code here
    ```
+## Scripts
+- `scripts/run_main.sh`: This is a script that runs the system per the parameters found in `config.json` Usage:
+   ```bash
+   cd scripts
+  ./run_main.sh
+   ```
+   Running this shell script will result in errors because the file paths defined in the code are based on the location of the D2.cmd file for remote running on Condor.
+  
+## Configs
+All arguments for the system are passed through the config file (`config.json`)
+
