@@ -42,6 +42,9 @@ class FeatureEngineering:
         # Save normalization info
         self.normalization_dict = {}
 
+        # Save embedding filepath
+        self.embedding_file_path = None
+
     def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
@@ -319,7 +322,7 @@ class FeatureEngineering:
 
         return data
 
-    def fit_transform(self, train_data: pd.DataFrame) -> pd.DataFrame:
+    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -328,6 +331,8 @@ class FeatureEngineering:
         ---------
         train_data
             The training data that is used to define the feature-engineering methods.
+        embedding_file_path
+            File path for the Glove embeddings file.
 
         Returns:
         -------
@@ -347,7 +352,10 @@ class FeatureEngineering:
         # Get NRC (emotion and sentiment word) counts feature
         transformed_data = self._NRC_counts(transformed_data)
 
-        # TODO: add in code below to fit and transform training data to generate other features as they are added
+        # Get Glove embeddings and aggregate across all words
+        self.embedding_file_path = embedding_file_path
+        transformed_data = self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
+        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(lambda x: sum(x)/len(x))
 
         # Update the fitted flag
         self.fitted = True
@@ -377,10 +385,12 @@ class FeatureEngineering:
         transformed_data = self.normalize_feature(data=data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
 
-        # Framework to add in steps for each feature that is to be generated
+        # Get NRC values
         transformed_data = self._NRC_counts(transformed_data)
 
-        # TODO: add in code below to transform datasets to generate other features as they are added
+        # Get Glove embeddings and aggregate across all words
+        transformed_data = self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
+        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(lambda x: sum(x) / len(x))
 
         return transformed_data
 
@@ -399,7 +409,9 @@ if __name__ == '__main__':
     myFE = FeatureEngineering()
 
     # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'])
+    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt')
+    # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+    # local machine to run this portion of the system.
 
     # Transform
     val_df = myFE.transform(myDP.processed_data['validation'])

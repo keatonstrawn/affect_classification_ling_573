@@ -308,8 +308,9 @@ if __name__ == '__main__':
     myClassifier = ClassificationModel('random_forest')
 
     # Train the model
-    features = ['percent_capitals', '!_count', '?_count', '$_count', '*_count', 'negative', 'positive', 'anger',
-                'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
+    features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized',
+                '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy',
+                'sadness', 'surprise', 'trust']
     train_pred = myClassifier.fit(train_df,
                                   tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
                                   keep_training_data=False, features=features)
