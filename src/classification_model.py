@@ -3,6 +3,7 @@ the features generated from the FeatureEngineering class."""
 
 # Libraries
 import pandas as pd
+import numpy as np
 
 from sklearn.ensemble import RandomForestClassifier
 from typing import List, Optional, Dict
@@ -52,6 +53,7 @@ class ClassificationModel:
         # Create attributes for random forest classification model
         self.random_forest_classifier: Optional[RandomForestClassifier] = None
         self.features: Optional[List[str]] = None
+        self.embedding_features: Optional[List[str]] = None
 
 
         # TODO: create necessary attributes for other models as they are added
@@ -104,7 +106,8 @@ class ClassificationModel:
 
         return pred_df
 
-    def _fit_random_forest_model(self, train_data: pd.DataFrame, features: List[str], tasks: List[str]) -> pd.DataFrame:
+    def _fit_random_forest_model(self, train_data: pd.DataFrame, tasks: List[str], features: Optional[List[str]],
+                                 embedding_features: Optional[List[str]]) -> pd.DataFrame:
         """Trains a random forest model to predict the target category/categories specified in the tasks list.
 
         Arguments:
@@ -118,6 +121,8 @@ class ClassificationModel:
             same model is trained to predict each of those labels simultaneously. To train an individual model for each
             task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
             'hate_speech_detection', 'target_or_general', 'aggression_detection'.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
 
 
         Returns:
@@ -126,11 +131,25 @@ class ClassificationModel:
         for the specified training task(s).
         """
 
+        # At least one of features or embedding_features must be non-empty
+        assert len(features) > 0 or len(embedding_features) > 0, \
+            'At least one feature must be provided in order to train a classification model'
+
         # Specify which columns contain the target class(es)
         task_cols = [self.target_map[t] for t in tasks]
 
         # Limit training data to include only the features and rid of NAs
         x_train = train_data[features]
+
+        # Process embedding(s) features, if they exist
+        self.embedding_features = embedding_features
+        for ef in embedding_features:
+            embeddings = np.stack(train_data[ef])
+            col_prefix = f'{ef}_dim_'
+            emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+            embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+            x_train = pd.concat([x_train, embeddings], axis=1)
+
 
         # Specify classification objective(s)
         y_train = train_data[task_cols]
@@ -168,7 +187,8 @@ class ClassificationModel:
         return pred_df
 
     def fit(self, train_data: pd.DataFrame, tasks: List[str], keep_training_data: bool = True,
-            parameters: Optional[dict] = None, features: Optional[List[str]] = None) -> pd.DataFrame:
+            parameters: Optional[dict] = None, features: Optional[List[str]] = None,
+            embedding_features: Optional[List[str]] = None) -> pd.DataFrame:
         """Uses the provided data to train the model to perform the specified classification task.
 
         Arguments:
@@ -186,6 +206,8 @@ class ClassificationModel:
             The dictionary of parameter values used to specify the model.
         features
             The list of features to be used in the classification task.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
 
 
         Returns:
@@ -212,8 +234,8 @@ class ClassificationModel:
         if self.model_type == 'random_forest':
 
             # Save the model features
-            assert features is not None, \
-                'The feature list must be provided in order to tran a Random Forest classification model.'
+            assert features is not None or embedding_features is not None, \
+                'At least one feature must be provided in order to tran a Random Forest classification model.'
             self.features = features
 
             # Save the default model parameters
@@ -231,10 +253,7 @@ class ClassificationModel:
                 self.train_data = train_data
 
             # Train the model
-            pred_df = self._fit_random_forest_model(train_data, features, tasks)
-
-        # TODO: Add other sections below that reference helper methods to do any necessary processing and fit_predict
-        #  for other classifier models as they are added
+            pred_df = self._fit_random_forest_model(train_data, tasks, features, embedding_features)
 
         # Flag that model fitting has occurred
         self.fitted = True
@@ -271,8 +290,17 @@ class ClassificationModel:
 
         if self.model_type == 'random_forest':
 
-            # Clean the data
+            # Add appropriate engineered features
             x_data = data[self.features]
+
+            # Add appropriate embedding features
+            if self.embedding_features is not None:
+                for ef in self.embedding_features:
+                    embeddings = np.stack(data[ef])
+                    col_prefix = f'{ef}_dim_'
+                    emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                    embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=data.index)
+                    x_data = pd.concat([x_data, embeddings], axis=1)
 
             # Get the predictions
             task_cols = [self.target_map[t] for t in self.tasks]
@@ -282,8 +310,6 @@ class ClassificationModel:
             for t in task_cols:
                 pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
                 n_cols += 1
-
-        # TODO: add sections below that perform prediction for other classifier models as they are added
 
         return pred_df
 

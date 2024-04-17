@@ -44,6 +44,8 @@ Alternatively, users can run the main.py script, which executes the workflow des
    from src.feature_engineering import FeatureEngineering
    from src.classification_model import ClassificationModel
    # import ModelEvaluator class
+   
+   from copy import deepcopy
    ```
 
 2. Load and clean the raw data.
@@ -80,10 +82,12 @@ Alternatively, users can run the main.py script, which executes the workflow des
     myBaseline = ClassificationModel('baseline')
 
     # Train the model
-    train_pred_baseline = myBaseline.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
+    train_df_baseline = deepcopy(train_df)
+    train_pred_baseline = myBaseline.fit(train_df_baseline, tasks=['hate_speech_detection'], keep_training_data=False)
 
     # Run the model on the validation data
-    val_pred_baseline = myBaseline.predict(val_df)
+    val_df_baseline = deepcopy(val_df)
+    val_pred_baseline = myBaseline.predict(val_df_baseline)
    ```
 
 5. Train the classification model.
@@ -98,7 +102,7 @@ Alternatively, users can run the main.py script, which executes the workflow des
                 '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 
                 'sadness', 'surprise', 'trust']
     train_pred_rf = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False, 
-                                     features=features)
+                                     features=features, embedding_features=['Aggregate_embeddings'])
 
     # Run the model on the validation data
     val_pred_rf = myClassifier.predict(val_df)
