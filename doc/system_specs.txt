@@ -62,11 +62,33 @@ dataset.
 The outputs of the fit_transform and transform methods will be transformed dataframes that contain each of the fields
 mentioned above, as well as the following features:
 
-_NRC_counts --> binary classification of words across eight emotional dimensions, then a positive dimension and a negative dimension. Raw counts are then transformed into
-                                    proportions to normalize across tweets. This method adds ten new columns to the 
-                                    end of the dataframe
-feature2_name: feature2_type
-*** TO BE FILLED IN AS WE ADD NEW FEATURES ***
+NRC counts --> binary classification of words across eight emotional dimensions, then a positive dimension and a
+                negative dimension. Raw counts are then transformed into proportions to normalize across tweets. This
+                method adds ten new columns to the end of the dataframe: negative, positive, anger, anticipation,
+                disgust, fear, joy, sadness, surprise, trust.
+
+GloVe Embeddings --> Creates GloVe style embeddings using the cleaned_text. The embedding dimension is determined by the
+                    version of glove.twitter that is specified by the embedding_filepath. Embeddings are generated for
+                    each word in the text and then saved in a list under GloVe_embeddings. These embeddings are also
+                    aggregated (using the component-wise mean) to generate a proxy for a 'sentence-level embedding' that
+                    is stored in Aggregate_embeddings.
+
+Normalized Features --> A method to normalize the count features that were generated during the data cleaning process
+                        was added. This method normalizes those counts to fall within [0,1] and is able to do so in two
+                        different ways: min-max normalization or z-score normalization. The default behavior is to use
+                        z-score normalization.
+                            1. One option is to normalize with respect to the min-max range seen across the training
+                                data for each feature. These min-max values are stored on the FeatureEngineering object
+                                and used to scale unseen validation/test data. Any unseen data that falls outside of the
+                                training min-max range is capped, to ensure the normalized values fall within [0,1].
+                            2. The other option is to fit a normal distribution to the feature-specific counts in the
+                                training data (by determining the standard deviation and mean) and converting the counts
+                                to probabilities using the cdf.
+                        The resulting values are stored under columns that follow the featureName_normalized structure.
+                        The default behavior results in the following new columns: !_count_normalized,
+                        ?_count_normalized, $_count_normalized, *_count_normalized.
+
+*** MORE TO BE FILLED IN AS WE ADD NEW FEATURES ***
 
 
 
@@ -87,24 +109,21 @@ classification tasks. If a model is only trained for a subset of the classificat
 predict methods will return dataframes that only contain the columns affiliated with the target classification tasks on
 which the model was trained.
 
-Model type: baseline
-    # TODO: include other models that predict separate classes in a discrete manner (if they exist)
+Model type: baseline, random_forest
 New columns:
-    HR_prediction: boolean (0 or 1)
+    HS_prediction: boolean (0 or 1)
     TR_prediction: boolean (0 or 1)
     AG_prediction: boolean (0 or 1)
 
-Model type: everything else?
-    # TODO: include models that predict separate classes in a continusous manner (e.g. there is a 37% chance it is
-        # hate speech and a 63% chance that it is not hate speech, etc.)
+Model type: (None - anticipating adding more classification models in the future)
 New columns:
-    HR_0: float [0, 1]
-    HR_1: float [0, 1]
+    HS_0: float [0, 1]
+    HS_1: float [0, 1]
     TR_0: float [0, 1]
     TR_1: float [0, 1]
     AG_0: float [0, 1]
     AG_1: float [0, 1]
-    HR_prediction: boolean (0 or 1)
+    HS_prediction: boolean (0 or 1)
     TR_prediction: boolean (0 or 1)
     AG_prediction: boolean (0 or 1)
 
