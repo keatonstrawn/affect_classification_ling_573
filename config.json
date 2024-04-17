@@ -9,7 +9,7 @@
   },
   "model": {
         "feature_engineering": {
-            "approach": "_NRC_counts"
+            "embedding_path": "data/glove.twitter.27B.25d.txt"
         },
         "classification": {
             "approach": "random_forest" ,

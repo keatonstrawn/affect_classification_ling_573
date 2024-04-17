@@ -46,7 +46,7 @@ def get_embedding_ave(embedding_list: List[np.array], embedding_dim: int) -> np.
 # Define class to perform feature engineering
 class FeatureEngineering:
 
-    def __init__(self, approach="_NRC_counts"):
+    def __init__(self):
         """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in
         SemEval 2019 task 5.
 
@@ -449,11 +449,11 @@ class FeatureEngineering:
 #     # Instantiate the FeatureEngineering object
 #     myFE = FeatureEngineering()
 
-      # Fit
-      train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
-                                    embedding_dim=25)
-      # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
-      # local machine to run this portion of the system.
+    #   # Fit
+    #   train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
+    #                                 embedding_dim=25)
+    #   # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+    #   # local machine to run this portion of the system.
 
 #     # Transform
 #     val_df = myFE.transform(myDP.processed_data['validation'])

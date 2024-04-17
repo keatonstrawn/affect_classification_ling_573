@@ -58,13 +58,13 @@ def make_eval_files(df, language):
     pred_a_df.to_csv(predpath_a, sep="\t")
 
 
-    # # TASK B
-    # # split dataframe into gold and prediction dataframes
-    # pred_b_df = df[["cleaned_text", "HS_prediction", "TR_prediction", "AG_prediction"]].copy()
+    # TASK B
+    # split dataframe into gold and prediction dataframes
+    pred_b_df = df[["cleaned_text", "HS_prediction", "TR_prediction", "AG_prediction"]].copy()
 
-    # # establish file path, save dataframe as .tsv files
-    # predpath_b = "".join(["results/input/res", lang, "_b.tsv"])
-    # pred_b_df.to_csv(predpath_b, sep="\t")
+    # establish file path, save dataframe as .tsv files
+    predpath_b = "".join(["results/input/res", lang, "_b.tsv"])
+    pred_b_df.to_csv(predpath_b, sep="\t")
 
 
 
@@ -96,18 +96,38 @@ def main(config):
     myDP.clean_data()
   
     # Instantiate the FeatureEngineering object
-    myFE = FeatureEngineering(config['model']['feature_engineering']['approach'])
+    myFE = FeatureEngineering()
+
 
     # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'])
+    train_df = myFE.fit_transform(myDP.processed_data['train'], 
+                                embedding_file_path= config['model']['feature_engineering']['embedding_path'],
+                                embedding_dim=25)
+    
     # Transform
     val_df = myFE.transform(myDP.processed_data['validation'])
 
     # View a sample of the results
-    # with open("test.txt", "w") as f:
-    #     f.write(str(train_df.head()))
-    #     f.write("\t")
-    #     f.write(str(val_df.head()))
+    with open("test.txt", "w") as f:
+        f.write(str(train_df.head()))
+        f.write("\t")
+        f.write(str(val_df.head()))
+
+    # Instantiate the model
+    myClassifier = ClassificationModel(config['model']['classification']['approach'])
+    
+
+    # Train the model
+    features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized',
+                '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy',
+                'sadness', 'surprise', 'trust']
+    train_pred = myClassifier.fit(train_df,
+                                tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
+                                keep_training_data=False,
+                                features=features)
+
+    # Run the model on the validation data
+    val_pred = myClassifier.predict(val_df)
 
     # # Instantiate the model
     # myClassifier = ClassificationModel(config['model']['classification']['approach'])
@@ -124,22 +144,9 @@ def main(config):
     # # Run the model on the validation data
     # val_pred = myClassifier.predict(val_df)
 
-    # # View a sample of the results
-    # train_df.head()
-    # val_df.head()
-
-    # Instantiate the model
-    myClassifier = ClassificationModel('baseline')
-
-    # Train the model
-    train_pred = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
-
-    # Run the model on the validation data
-    val_pred = myClassifier.predict(val_df)
-
     # View a sample of the results
-    # train_df.head()
-    # val_df.head()
+    train_df.head()
+    val_df.head()
 
     # create evaluation files based on val_pred
     make_eval_files(val_pred, input_tsv_files['language'])

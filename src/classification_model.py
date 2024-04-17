@@ -143,12 +143,13 @@ class ClassificationModel:
 
         # Process embedding(s) features, if they exist
         self.embedding_features = embedding_features
-        for ef in embedding_features:
-            embeddings = np.stack(train_data[ef])
-            col_prefix = f'{ef}_dim_'
-            emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
-            embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
-            x_train = pd.concat([x_train, embeddings], axis=1)
+        if embedding_features is not None:
+            for ef in embedding_features:
+                embeddings = np.stack(train_data[ef])
+                col_prefix = f'{ef}_dim_'
+                emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+                x_train = pd.concat([x_train, embeddings], axis=1)
 
 
         # Specify classification objective(s)
