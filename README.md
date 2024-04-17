@@ -68,6 +68,8 @@ Alternatively, users can run the main.py script, which executes the workflow des
     myFE = FeatureEngineering()
 
     # Fit the feature generators
+    # Note that the embedding_file_path points to a file that is too large for GitHub, so the path will need to be 
+    # changed to point to a locally saved file
     train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
         embedding_dim=25)
 
