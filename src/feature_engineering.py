@@ -3,21 +3,20 @@ model can use to classify the tweets within the dataset.
 """
 
 # Libraries
-import pandas as pd
-from nrclex import NRCLex
-from typing import Optional
-from nltk.tokenize import word_tokenize
-# for fastText embeddings and GloVe
-from gensim.models import KeyedVectors
-import pandas as pd
-# for BERTweet                                      
-from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
 import torch
 import numpy as np
+import pandas as pd
+
+from nrclex import NRCLex
+from nltk.tokenize import word_tokenize
+from gensim.models import KeyedVectors
+from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
+from typing import List, Union, Optional, Dict
+
 # for Universal Sentence Encoder -- need to add tensorflow to environment.yml file                   
 #import tensorflow as tf
 #import tensorflow_hub as hub
-from typing import List, Union, Optional
+
 
 # Define class to perform feature engineering
 class FeatureEngineering:
