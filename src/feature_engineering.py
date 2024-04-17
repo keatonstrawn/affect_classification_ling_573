@@ -19,6 +19,30 @@ from typing import List, Union, Optional, Dict
 #import tensorflow_hub as hub
 
 
+# Define helper function to aggregate embeddings
+def get_embedding_ave(embedding_list: List[np.array], embedding_dim: int) -> np.array:
+    """Function to average a list of word embeddings in order to generate a single sentence embedding.
+
+    Arguments:
+    ----------
+    embedding_list
+        The list of word embeddings to be averaged.
+    embedding_dim
+        The dimension of the embeddings.
+
+    Returns:
+    --------
+        A single, aggregated embedding that is averaged over the provided list. Returns a 0 embedding when the list is
+        empty.
+    """
+    if len(embedding_list) > 0:
+        agg_embedding = sum(embedding_list) / len(embedding_list)
+    else:
+        agg_embedding = np.zeros(embedding_dim)
+
+    return agg_embedding
+
+
 # Define class to perform feature engineering
 class FeatureEngineering:
 
@@ -42,8 +66,9 @@ class FeatureEngineering:
         # Save normalization info
         self.normalization_dict = {}
 
-        # Save embedding filepath
+        # Save embedding info
         self.embedding_file_path = None
+        self.embedding_dim = None
 
     def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
@@ -322,7 +347,7 @@ class FeatureEngineering:
 
         return data
 
-    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str) -> pd.DataFrame:
+    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -333,6 +358,8 @@ class FeatureEngineering:
             The training data that is used to define the feature-engineering methods.
         embedding_file_path
             File path for the Glove embeddings file.
+        embedding_dim
+            The dimension of the embeddings.
 
         Returns:
         -------
@@ -354,8 +381,10 @@ class FeatureEngineering:
 
         # Get Glove embeddings and aggregate across all words
         self.embedding_file_path = embedding_file_path
-        transformed_data = self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
-        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(lambda x: sum(x)/len(x))
+        self.embedding_dim = embedding_dim
+        self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
+        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
+            lambda x: get_embedding_ave(x, embedding_dim))
 
         # Update the fitted flag
         self.fitted = True
@@ -389,8 +418,9 @@ class FeatureEngineering:
         transformed_data = self._NRC_counts(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
-        transformed_data = self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
-        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(lambda x: sum(x) / len(x))
+        self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
+        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
+            lambda x: get_embedding_ave(x, self.embedding_dim))
 
         return transformed_data
 
@@ -409,7 +439,8 @@ if __name__ == '__main__':
     myFE = FeatureEngineering()
 
     # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt')
+    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
+                                  embedding_dim=25)
     # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
     # local machine to run this portion of the system.
 

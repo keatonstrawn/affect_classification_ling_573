@@ -66,7 +66,8 @@ Alternatively, users can run the main.py script, which executes the workflow des
     myFE = FeatureEngineering()
 
     # Fit the feature generators
-    train_df = myFE.fit_transform(myDP.processed_data['train'])
+    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
+        embedding_dim=25)
 
     # Transform the validation data
     val_df = myFE.transform(myDP.processed_data['validation'])
