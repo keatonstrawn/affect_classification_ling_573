@@ -110,6 +110,14 @@ New columns:
 
 
 
-Model Evaluator (put_module_reference_here):
+Model Evaluator (evaluator.py):
+This module defines the Evaluator class, which takes the output of the classification and runs an analysis to evaluate the model's performance on the affect classification task. For each metric (HS, TR, AG), the evaluator calculates the precision, accuracy, and F1 scores achieved by the model. This class is an adaptation of the Evaluation script provided by the SemEval 2019 Task 5 team to ensure the same evaluation techniques were used by all teams participating in the shared task. It was then modified to be a class within our model. It requires a specific structure for the 'results' directory:
+- 'results': directory containing all results-related content
+    - 'input': directory containing the input information required by the Evaluator class for calculations
+        - 'ref': directory containing the gold standard .tsv files for the data
+        - 'res': directory containing the system results .tsv files for the data
+    - 'output': directory containing the output file produced by the Evaluator class, containing F1, precision, and accuracy scores
 
-<insert description here>
+
+Model Coordinator (main.py):
+This file coordinates the system by loading the configuration file, and using it to consecutively run the system's modules from Processing to Feature Engineering to Classification to Evaluation. Additionally, this file has functions to format the data and store it in the correct files for the Model Evaluator to perform its analysis on the data.
