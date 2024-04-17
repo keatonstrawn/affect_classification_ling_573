@@ -114,7 +114,8 @@ def main(config):
         f.write(str(val_df.head()))
 
     # Instantiate the model
-    myClassifier = ClassificationModel(config['model']['classification']['approach'])
+    # myClassifier = ClassificationModel(config['model']['classification']['approach'])
+    myClassifier = ClassificationModel('baseline')
     
 
     # Train the model
