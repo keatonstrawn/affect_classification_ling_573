@@ -59,6 +59,7 @@ class Evaluator:
 
     def evaluate_b(self,pred,gold):
         levels = ["HS", "TargetRange", "Aggressiveness"]
+        # levels = ["HS_prediction", "TR_prediction", "AG_prediction"]
 
         ground_truth = pd.read_csv(gold, sep="\t", names=["ID", "Tweet-text", "HS", "TargetRange", "Aggressiveness"],
                                 converters={0: str, 1: str, 2: int, 3: int, 4: int}, header=None, skiprows=1)
@@ -66,6 +67,7 @@ class Evaluator:
         predicted = pd.read_csv(pred, sep="\t", names=["ID"] + levels,
                                 converters={0: str, 1: int, 2: int, 3: int}, header=None, skiprows=1)
 
+        predicted.to_csv("predicted_b.csv")
         # Check length files
         if (len(ground_truth) != len(predicted)):
             sys.exit('Prediction and gold data have different number of lines.')
@@ -117,55 +119,59 @@ class Evaluator:
         task = submission_path.split('/')[-1].replace('.tsv', '').split('_')[1]
 
         output_file = open(os.path.join(self.output_dir, 'scores.txt'), "w")
-        if task == 'a':
-            acc_hs, p_hs, r_hs, f1_hs = self.evaluate_a(submission_path, gold_standard)
 
-            # the scores for the leaderboard must be in a file named "scores.txt"
-            # https://github.com/codalab/codalab-competitions/wiki/User_Building-a-Scoring-Program-for-a-Competition#directory-structure-for-submissions
+        for file_name in os.listdir(res_dir):
+            submission_path = os.path.join(res_dir, file_name)
+            task = file_name.split('/')[-1].replace('.tsv', '').split('_')[1]
 
-            output_file.write("taskA_fscore: {0}\n".format(f1_hs))
-            output_file.write("taskA_precision: {0}\n".format(p_hs))
-            output_file.write("taskA_recall: {0}\n".format(r_hs))
-            output_file.write("taskA_accuracy: {0}\n".format(acc_hs))
-            print("taskA_fscore: {0}".format(f1_hs))
-            print("taskA_precision: {0}".format(p_hs))
-            print("taskA_recall: {0}".format(r_hs))
-            print("taskA_accuracy: {0}".format(acc_hs))
-        elif task == 'b':
-            output_file.write("\n\nBeginning to evaluate task b:")
-            macro_f1, emr, acc_levels, p_levels, r_levels, f1_levels = self.evaluate_b(submission_path, gold_standard)
+            if task == 'a':
+                acc_hs, p_hs, r_hs, f1_hs = self.evaluate_a(submission_path, gold_standard)
 
-            # the scores for the leaderboard must be in a file named "scores.txt"
-            # https://github.com/codalab/codalab-competitions/wiki/User_Building-a-Scoring-Program-for-a-Competition#directory-structure-for-submissions
+                # the scores for the leaderboard must be in a file named "scores.txt"
+                # https://github.com/codalab/codalab-competitions/wiki/User_Building-a-Scoring-Program-for-a-Competition#directory-structure-for-submissions
 
-            output_file.write("taskB_fscore_macro: {0}\n".format(macro_f1))
-            output_file.write("taskB_emr: {0}\n".format(emr))
-            output_file.write("taskB_fscore_HS: {0}\n".format(f1_levels["HS"]))
-            output_file.write("taskB_precision_HS: {0}\n".format(p_levels["HS"]))
-            output_file.write("taskB_recall_HS: {0}\n".format(r_levels["HS"]))
-            output_file.write("taskB_accuracy_HS: {0}\n".format(acc_levels["HS"]))
-            output_file.write("taskB_fscore_TR: {0}\n".format(f1_levels["TargetRange"]))
-            output_file.write("taskB_precision_TR: {0}\n".format(p_levels["TargetRange"]))
-            output_file.write("taskB_recall_TR: {0}\n".format(r_levels["TargetRange"]))
-            output_file.write("taskB_accuracy_TR: {0}\n".format(acc_levels["TargetRange"]))
-            output_file.write("taskB_fscore_AG: {0}\n".format(f1_levels["Aggressiveness"]))
-            output_file.write("taskB_precision_AG: {0}\n".format(p_levels["Aggressiveness"]))
-            output_file.write("taskB_recall_AG: {0}\n".format(r_levels["Aggressiveness"]))
-            output_file.write("taskB_accuracy_AG: {0}\n".format(acc_levels["Aggressiveness"]))
+                output_file.write("taskA_fscore: {0}\n".format(f1_hs))
+                output_file.write("taskA_precision: {0}\n".format(p_hs))
+                output_file.write("taskA_recall: {0}\n".format(r_hs))
+                output_file.write("taskA_accuracy: {0}\n".format(acc_hs))
+                print("taskA_fscore: {0}".format(f1_hs))
+                print("taskA_precision: {0}".format(p_hs))
+                print("taskA_recall: {0}".format(r_hs))
+                print("taskA_accuracy: {0}".format(acc_hs))
+            elif task == 'b':
+                macro_f1, emr, acc_levels, p_levels, r_levels, f1_levels = self.evaluate_b(submission_path, gold_standard)
 
-            print("taskB_fscore_macro: {0}".format(macro_f1))
-            print("taskB_emr: {0}n".format(emr))
-            print("taskB_fscore_HS: {0}".format(f1_levels["HS"]))
-            print("taskB_precision_HS: {0}".format(p_levels["HS"]))
-            print("taskB_recall_HS: {0}".format(r_levels["HS"]))
-            print("taskB_accuracy_HS: {0}".format(acc_levels["HS"]))
-            print("taskB_fscore_TR: {0}".format(f1_levels["TargetRange"]))
-            print("taskB_precision_TR: {0}".format(p_levels["TargetRange"]))
-            print("taskB_recall_TR: {0}".format(r_levels["TargetRange"]))
-            print("taskB_accuracy_TR: {0}".format(acc_levels["TargetRange"]))
-            print("taskB_fscore_AG: {0}".format(f1_levels["Aggressiveness"]))
-            print("taskB_precision_AG: {0}".format(p_levels["Aggressiveness"]))
-            print("taskB_recall_AG: {0}".format(r_levels["Aggressiveness"]))
-            print("taskB_accuracy_AG: {0}".format(acc_levels["Aggressiveness"]))
+                # the scores for the leaderboard must be in a file named "scores.txt"
+                # https://github.com/codalab/codalab-competitions/wiki/User_Building-a-Scoring-Program-for-a-Competition#directory-structure-for-submissions
+                output_file.write("\n\n")
+                output_file.write("taskB_fscore_macro: {0}\n".format(macro_f1))
+                output_file.write("taskB_emr: {0}\n".format(emr))
+                output_file.write("taskB_fscore_HS: {0}\n".format(f1_levels["HS"]))
+                output_file.write("taskB_precision_HS: {0}\n".format(p_levels["HS"]))
+                output_file.write("taskB_recall_HS: {0}\n".format(r_levels["HS"]))
+                output_file.write("taskB_accuracy_HS: {0}\n".format(acc_levels["HS"]))
+                output_file.write("taskB_fscore_TR: {0}\n".format(f1_levels["TargetRange"]))
+                output_file.write("taskB_precision_TR: {0}\n".format(p_levels["TargetRange"]))
+                output_file.write("taskB_recall_TR: {0}\n".format(r_levels["TargetRange"]))
+                output_file.write("taskB_accuracy_TR: {0}\n".format(acc_levels["TargetRange"]))
+                output_file.write("taskB_fscore_AG: {0}\n".format(f1_levels["Aggressiveness"]))
+                output_file.write("taskB_precision_AG: {0}\n".format(p_levels["Aggressiveness"]))
+                output_file.write("taskB_recall_AG: {0}\n".format(r_levels["Aggressiveness"]))
+                output_file.write("taskB_accuracy_AG: {0}\n".format(acc_levels["Aggressiveness"]))
+
+                print("taskB_fscore_macro: {0}".format(macro_f1))
+                print("taskB_emr: {0}n".format(emr))
+                print("taskB_fscore_HS: {0}".format(f1_levels["HS"]))
+                print("taskB_precision_HS: {0}".format(p_levels["HS"]))
+                print("taskB_recall_HS: {0}".format(r_levels["HS"]))
+                print("taskB_accuracy_HS: {0}".format(acc_levels["HS"]))
+                print("taskB_fscore_TR: {0}".format(f1_levels["TargetRange"]))
+                print("taskB_precision_TR: {0}".format(p_levels["TargetRange"]))
+                print("taskB_recall_TR: {0}".format(r_levels["TargetRange"]))
+                print("taskB_accuracy_TR: {0}".format(acc_levels["TargetRange"]))
+                print("taskB_fscore_AG: {0}".format(f1_levels["Aggressiveness"]))
+                print("taskB_precision_AG: {0}".format(p_levels["Aggressiveness"]))
+                print("taskB_recall_AG: {0}".format(r_levels["Aggressiveness"]))
+                print("taskB_accuracy_AG: {0}".format(acc_levels["Aggressiveness"]))
 
         output_file.close()

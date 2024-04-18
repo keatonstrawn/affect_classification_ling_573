@@ -141,7 +141,6 @@ class ClassificationModel:
         # Limit training data to include only the features and rid of NAs
         x_train = train_data[features]
 
-        train_data[embedding_features].to_csv("training_data_test.csv")
         # Process embedding(s) features, if they exist
         self.embedding_features = embedding_features
         if embedding_features is not None:

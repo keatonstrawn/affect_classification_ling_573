@@ -60,8 +60,9 @@ def make_eval_files(df, language):
 
     # TASK B
     # split dataframe into gold and prediction dataframes
-    pred_b_df = df[["cleaned_text", "HS_prediction", "TR_prediction", "AG_prediction"]].copy()
+    pred_b_df = df[["HS_prediction", "TR_prediction", "AG_prediction"]].copy()
 
+    pred_b_df = pred_b_df.rename(columns={"HS_prediction": "HS", "TR_prediction": "TR", "AG_prediction": "AG"})
     # establish file path, save dataframe as .tsv files
     predpath_b = "".join(["results/input/res/", lang, "_b.tsv"])
     pred_b_df.to_csv(predpath_b, sep="\t")
@@ -108,8 +109,8 @@ def main(config):
     val_df = myFE.transform(myDP.processed_data['validation'])
 
     # View a sample of the results
-    train_df.to_csv("train.csv")
-    val_df.to_csv("val.csv")
+    # train_df.to_csv("train.csv")
+    # val_df.to_csv("val.csv")
 
     # Instantiate the model
     myClassifier = ClassificationModel(config['model']['classification']['approach'])
@@ -119,7 +120,7 @@ def main(config):
     features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized',
                 '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy',
                 'sadness', 'surprise', 'trust']
-    embedding_features = ['GloVe_embeddings', 'Aggregate_embeddings']
+    embedding_features = ['Aggregate_embeddings']
 
     train_pred = myClassifier.fit(train_df,
                                 tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
@@ -127,8 +128,12 @@ def main(config):
                                 features=features,
                                 embedding_features=embedding_features)
 
+    train_pred.to_csv("training_predictions.csv")
+    
+
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
+    val_pred.to_csv("validation_predictions.csv")
 
     # View a sample of the results
     train_df.head()
