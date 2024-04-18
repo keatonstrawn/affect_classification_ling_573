@@ -143,7 +143,7 @@ class Evaluator:
 
                 # the scores for the leaderboard must be in a file named "scores.txt"
                 # https://github.com/codalab/codalab-competitions/wiki/User_Building-a-Scoring-Program-for-a-Competition#directory-structure-for-submissions
-                output_file.write("\n\n")
+                output_file.write("\n")
                 output_file.write("taskB_fscore_macro: {0}\n".format(macro_f1))
                 output_file.write("taskB_emr: {0}\n".format(emr))
                 output_file.write("taskB_fscore_HS: {0}\n".format(f1_levels["HS"]))
