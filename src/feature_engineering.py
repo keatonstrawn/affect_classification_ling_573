@@ -6,6 +6,7 @@ model can use to classify the tweets within the dataset.
 import torch
 import numpy as np
 import pandas as pd
+import scipy.stats as st
 
 from nrclex import NRCLex
 from nltk.tokenize import word_tokenize
@@ -13,9 +14,33 @@ from gensim.models import KeyedVectors
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
 from typing import List, Union, Optional, Dict
 
-# for Universal Sentence Encoder -- need to add tensorflow to environment.yml file                   
+# for Universal Sentence Encoder -- need to add tensorflow to environment.yml file
 #import tensorflow as tf
 #import tensorflow_hub as hub
+
+
+# Define helper function to aggregate embeddings
+def get_embedding_ave(embedding_list: List[np.array], embedding_dim: int) -> np.array:
+    """Function to average a list of word embeddings in order to generate a single sentence embedding.
+
+    Arguments:
+    ----------
+    embedding_list
+        The list of word embeddings to be averaged.
+    embedding_dim
+        The dimension of the embeddings.
+
+    Returns:
+    --------
+        A single, aggregated embedding that is averaged over the provided list. Returns a 0 embedding when the list is
+        empty.
+    """
+    if len(embedding_list) > 0:
+        agg_embedding = sum(embedding_list) / len(embedding_list)
+    else:
+        agg_embedding = np.zeros(embedding_dim)
+
+    return agg_embedding
 
 
 # Define class to perform feature engineering
@@ -31,14 +56,23 @@ class FeatureEngineering:
             * example feature2 --> fill this in with actual feature
             * example feature3 --> fill this in with actual feature
         """
-
+        
         # Initialize the cleaned datasets
         self.train_data: Optional[pd.DataFrame] = None
 
         # Set fit flag
         self.fitted = False
 
-    def _NRC_counts(self, data: pd.DataFrame):
+
+        # Save normalization info
+        self.normalization_dict = {}
+
+        # Save embedding info
+        self.embedding_file_path = None
+        self.embedding_dim = None
+
+    def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
+
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
         positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
@@ -77,15 +111,15 @@ class FeatureEngineering:
         # divide by total count of emo markers to get proportions not frequency counts
         # Replace 0 values with NaN to prevent error with dividing by zero
         rowsums = data.iloc[:, -10:].sum(axis=1)
-        rowsums[rowsums == 0] = float('NaN')
+        rowsums[rowsums == 0] = 1.0
         data.iloc[:, -10:] = data.iloc[:, -10:].div(rowsums, axis=0)
 
         # ***Uncomment the line below to create file showing the data visualized***
         # data.to_csv('test.txt', sep=',', header=True)
 
         return data
-    
-    def embeddings_helper(self, tweet: str, model: Union[Dict, KeyedVectors, PreTrainedModel], embedding_type: str, 
+
+    def embeddings_helper(self, tweet: str, model: Union[Dict, KeyedVectors, PreTrainedModel], embedding_type: str,
                           tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
         """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
         from model/dictionary.
@@ -110,7 +144,7 @@ class FeatureEngineering:
         """
         # tokenize
         words = tweet.split()
-        
+
         # retrieve embeddings if in the vocabulary/model
         if embedding_type == '1':
             embeddings = [model[word] for word in words if word in model.key_to_index]
@@ -125,12 +159,12 @@ class FeatureEngineering:
             embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
         else:
             embeddings = [model[word] for word in words if word in model.keys()]
-            
+
         return embeddings
 
     def get_fasttext_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get FastText embeddings from a dataframe and automatically add them to this dataframe. These
-        are pretrained embeddings with d_e == 300 
+        are pretrained embeddings with d_e == 300
 
         Arguments:
         ---------
@@ -195,14 +229,14 @@ class FeatureEngineering:
                 word = values[0]
                 coefs = np.asarray(values[1:], dtype='float32')
                 embeddings_index[word] = coefs
-        
+
         # get the embeddings for each row and save to a new column in the dataframe
-        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, embeddings_index, '3'))    
+        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, embeddings_index, '3'))
 
     def get_universal_sent_embeddings(self, df: pd.DataFrame):
         """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
-        to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of 
-        d_e == 512. 
+        to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of
+        d_e == 512.
 
         Arguments:
         ---------
@@ -220,7 +254,102 @@ class FeatureEngineering:
         # get the embeddings for each row and save to a new column in the dataframe
         df['Universal_Sentence_Encoder_embeddings'] = df['cleaned_text'].apply(embed)
 
-    def fit_transform(self, train_data):
+    def normalize_feature(self, data: pd.DataFrame, feature_columns: List[str],
+                          normalization_method: Optional[str] = None) -> pd.DataFrame:
+        """Normalizes the features in the specified columns by transforming the data to fall within [0,1].
+
+        This can be done using a number of different approaches. The specific approach and relevant parameters needed to
+        perform normalization in downstream transformations are saved in the normalization_dict, which is keyed by the
+        feature column name.
+
+        Arguments:
+        ----------
+        data
+            The data for which the feature is to be generated
+        feature_columns
+            The column name(s) of the feature(s) to be normalized. If multiple column names are provided then the values
+            in both columns are simultaneously normalized.
+        normalization_method
+            Required when fitting. Specifies which calculation to use to normalize the features. Options include...
+            min_max:
+                Applies (x-min)/(max-min) transformation, capping the resulting values to fall within [0,1].
+            z_score:
+                Applies Norm.CDF((x-mu)/sigma) transformation. Values correspond to percentages from a normal
+                distribution.
+                #TODO: extend this method to use a more appropriate distribution than normal for certain features
+
+        Returns:
+        -------
+        transformed_data
+            The original train_data dataframe with new columns that include the normalized features for each observation
+            in the dataset.
+        """
+
+        # Initialize dictionary to hold normalized results
+        normalized_feats = {}
+
+        # Perform normalization transformations, assuming fitting has already occurred
+        if self.fitted:
+            for feat in feature_columns:
+
+                # If trained normalization method uses min-max approach
+                if self.normalization_dict[feat]['method'] == 'min_max':
+                    f_min = self.normalization_dict[feat]['params']['min']
+                    f_max = self.normalization_dict[feat]['params']['max']
+                    feat_vals = data[feat]
+                    norm_vals = (feat_vals - f_min) / (f_max - f_min)
+                    # Cap any extreme values that fall outside the range seen in the training data
+                    norm_vals[norm_vals > 1.0] = 1.0
+                    norm_vals[norm_vals < 0.0] = 0.0
+
+                # If trained normalization method uses z-score approach
+                if self.normalization_dict[feat]['method'] == 'z_score':
+                    sigma = self.normalization_dict[feat]['params']['sigma']
+                    mu = self.normalization_dict[feat]['params']['mu']
+                    feat_vals = data[feat]
+                    z_scores = (feat_vals - mu) / sigma
+                    norm_vals = st.norm.cdf(z_scores)
+
+                # Store results to be returned
+                normalized_feats[feat] = norm_vals
+
+        # Learn and apply normalization transformations
+        else:
+            for feat in feature_columns:
+                self.normalization_dict[feat] = {}
+                feat_vals = data[feat]
+
+                # If specified normalization method is min-max approach
+                if normalization_method == 'min_max':
+                    f_min = feat_vals.min()
+                    f_max = feat_vals.max()
+                    norm_vals = (feat_vals - f_min) / (f_max - f_min)
+                    # Save parameters for future transformations
+                    self.normalization_dict[feat]['method'] = 'min_max'
+                    self.normalization_dict[feat]['params'] = {'min': f_min, 'max': f_max}
+
+                # If specified normalization method is z-score approach
+                if normalization_method == 'z_score':
+                    sigma = feat_vals.std()
+                    mu = feat_vals.mean()
+                    z_scores = (feat_vals - mu) / sigma
+                    norm_vals = st.norm.cdf(z_scores)
+                    # Save parameters for future transformations
+                    self.normalization_dict[feat]['method'] = 'z_score'
+                    self.normalization_dict[feat]['params'] = {'sigma': sigma, 'mu': mu}
+
+                # Store results to be returned
+                normalized_feats[feat] = norm_vals
+
+        # Add normalized features to dataframe
+        n_cols = len(data.columns)
+        for k in normalized_feats.keys():
+            data.insert(loc=n_cols, column=f'{k}_normalized', value=normalized_feats[k])
+            n_cols += 1
+
+        return data
+
+    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -229,6 +358,10 @@ class FeatureEngineering:
         ---------
         train_data
             The training data that is used to define the feature-engineering methods.
+        embedding_file_path
+            File path for the Glove embeddings file.
+        embedding_dim
+            The dimension of the embeddings.
 
         Returns:
         -------
@@ -240,18 +373,31 @@ class FeatureEngineering:
         # Get the training data, to be used for fitting
         self.train_data = train_data
 
-        # Framework to add in steps for each feature that is to be generated
-        # transformed_data = self._example_feature1_method(train_data, fit=True, other_args=None)
-        transformed_data = self._NRC_counts(train_data)
 
-        # TODO: add in code below to fit and transform training data to generate other features as they are added
+        # Normalize count features from data cleaning process
+        transformed_data = self.normalize_feature(data=train_data,
+                                                  feature_columns=['!_count', '?_count', '$_count', '*_count'],
+                                                  normalization_method='z_score')
+
+
+        # Get NRC (emotion and sentiment word) counts feature
+        transformed_data = self._NRC_counts(transformed_data)
+
+        # Get Glove embeddings and aggregate across all words
+        self.embedding_file_path = embedding_file_path
+        self.embedding_dim = embedding_dim
+        self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
+        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
+            lambda x: get_embedding_ave(x, embedding_dim))
 
         # Update the fitted flag
         self.fitted = True
 
         return transformed_data
 
-    def transform(self, data):
+
+    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
+
         """Uses the feature-generating methods that were fit in an earlier step to transform a new dataset to include
         the feature-set expected by the classification model.
 
@@ -270,35 +416,48 @@ class FeatureEngineering:
         # Ensure feature generating methods have been trained prior to transforming the data
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
-        # Framework to add in steps for each feature that is to be generated
-        transformed_data = self._NRC_counts(data)
 
-        # TODO: add in code below to transform datasets to generate other features as they are added
+        # Normalize count features from data cleaning process
+        transformed_data = self.normalize_feature(data=data,
+                                                  feature_columns=['!_count', '?_count', '$_count', '*_count'])
+
+        # Get NRC values
+        transformed_data = self._NRC_counts(transformed_data)
+
+
+        # Get Glove embeddings and aggregate across all words
+        self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
+        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
+            lambda x: get_embedding_ave(x, self.embedding_dim))
 
         return transformed_data
 
+''' The lines below are commented out so that all code is run through main.py
+'''
+# if __name__ == '__main__':
 
-if __name__ == '__main__':
-
-    # Imports
-    from data_processor import DataProcessor
-
-    # Load and clean the raw data
-    myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-    myDP.clean_data()
-
-    # Instantiate the FeatureEngineering object
-    myFE = FeatureEngineering()
-
-    # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'])
-
-    # Transform
-    val_df = myFE.transform(myDP.processed_data['validation'])
-
-    # View a sample of the results
-    train_df.head()
-    val_df.head()
+#     # Imports
+#     from data_processor import DataProcessor
 
 
+#     # Load and clean the raw data
+#     myDP = DataProcessor()
+#     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+#     myDP.clean_data()
+
+
+#     # Instantiate the FeatureEngineering object
+#     myFE = FeatureEngineering()
+
+    #   # Fit
+    #   train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
+    #                                 embedding_dim=25)
+    #   # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+    #   # local machine to run this portion of the system.
+
+#     # Transform
+#     val_df = myFE.transform(myDP.processed_data['validation'])
+
+#     # View a sample of the results
+#     train_df.head()
+#     val_df.head()

@@ -41,23 +41,21 @@ Alternatively, users can run the main.py script, which executes the workflow des
 
    ```python
    from src.data_processor import DataProcessor
-
    from src.feature_engineering import FeatureEngineering
    from src.classification_model import ClassificationModel
-
    # import ModelEvaluator class
+   
+   from copy import deepcopy
    ```
 
 2. Load and clean the raw data.
 
    ```python
-
     # Instantiate the DataProcessor object
     myDP = DataProcessor()
 
     # Load data from disk
     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-
 
     # Clean the text
     myDP.clean_data()
@@ -66,35 +64,65 @@ Alternatively, users can run the main.py script, which executes the workflow des
 3. Generate features for the model to use.
 
    ```python
-
     # Instantiate the FeatureEngineering object
     myFE = FeatureEngineering()
 
     # Fit the feature generators
-    train_df = myFE.fit_transform(myDP.processed_data['train'])
+    # Note that the embedding_file_path points to a file that is too large for GitHub, so the path will need to be 
+    # changed to point to a locally saved file
+    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
+        embedding_dim=25)
 
     # Transform the validation data
     val_df = myFE.transform(myDP.processed_data['validation'])
-
    ```
 
-4. Train the classification model.
+4. Train the baseline model.
 
    ```python
-
     # Instantiate the model
-    myClassifier = ClassificationModel('baseline')
+    myBaseline = ClassificationModel('baseline')
 
     # Train the model
-    train_pred = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False)
+    train_df_baseline = deepcopy(train_df)
+    train_pred_baseline = myBaseline.fit(train_df_baseline, tasks=['hate_speech_detection'], keep_training_data=False)
 
     # Run the model on the validation data
-    val_pred = myClassifier.predict(val_df)
-
+    val_df_baseline = deepcopy(val_df)
+    val_pred_baseline = myBaseline.predict(val_df_baseline)
    ```
 
-5. Evaluate the model's performance.
+5. Train the classification model.
+
+   ```python
+    # Instantiate the model
+    myClassifier = ClassificationModel('random_forest')
+
+    # Train the model
+    # TODO: features list should be powered by the config file
+    features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized', 
+                '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 
+                'sadness', 'surprise', 'trust']
+    train_pred_rf = myClassifier.fit(train_df, tasks=['hate_speech_detection'], keep_training_data=False, 
+                                     features=features, embedding_features=['Aggregate_embeddings'])
+
+    # Run the model on the validation data
+    val_pred_rf = myClassifier.predict(val_df)
+   ```
+
+6. Evaluate the model's performance.
 
    ```python
    # Put ModelEvaluator-affiliated code here
    ```
+## Scripts
+- `scripts/run_main.sh`: This is a script that runs the system per the parameters found in `config.json` Usage:
+   ```bash
+   cd scripts
+  ./run_main.sh
+   ```
+   Running this shell script will result in errors because the file paths defined in the code are based on the location of the D2.cmd file for remote running on Condor.
+  
+## Configs
+All arguments for the system are passed through the config file (`config.json`)
+

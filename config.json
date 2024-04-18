@@ -1,21 +1,28 @@
 {
   "document_processing": {
-      "data_ingested": {
-          "training": true,
-          "devtest": true,
-          "evaltest": true
-      },
-    "input_tsv_file": {
-        "training": # will fill in with path ,
-        "devtest": # will fill in with path ,
-        "evaltest": # will fill in with path ,
-    },
-    "output_dir": {
-        "training": "data/training",
-        "devtest": "data/devtest",
-        "evaltest": "data/evaltest"
-    }
+        "input_tsv_files": {
+            "filepath": "data",
+            "training": "data/train_en.tsv" ,
+            "devtest": "data/dev_en.tsv" ,
+            "language": "english"
+        }
   },
   "model": {
+        "feature_engineering": {
+            "embedding_path": "data/glove.twitter.27B.25d.txt"
+        },
+        "classification": {
+            "approach": "random_forest" ,
+            "params": {
+                "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
+                "keep_training_data": "False" ,
+                "param3": "put_param_here"
+            }
+        }
+  },
+  "evaluation": {
+        "metrics": "F1",
+        "data_subset": "devtest",
+        "results_dir": "results/devtest"
   }
 }
