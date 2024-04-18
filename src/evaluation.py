@@ -53,7 +53,7 @@ class Evaluator:
 
         # Compute Performance Measures HS
         acc_hs = accuracy_score(data["HS_x"], data["HS_y"])
-        p_hs, r_hs, f1_hs, support = precision_recall_fscore_support(data["HS_x"], data["HS_y"], average = "macro")
+        p_hs, r_hs, f1_hs, support = precision_recall_fscore_support(data["HS_x"], data["HS_y"], average = "macro", zero_division=1)
 
         return acc_hs, p_hs, r_hs, f1_hs
 
@@ -88,7 +88,7 @@ class Evaluator:
         f1_levels = dict.fromkeys(levels)
         for l in levels:
             acc_levels[l] = accuracy_score(data[l + "_x"], data[l + "_y"])
-            p_levels[l], r_levels[l], f1_levels[l], _ = precision_recall_fscore_support(data[l + "_x"], data[l + "_y"], average="macro")
+            p_levels[l], r_levels[l], f1_levels[l], _ = precision_recall_fscore_support(data[l + "_x"], data[l + "_y"], average="macro", zero_division=1)
         macro_f1 = np.mean(list(f1_levels.values()))
 
         # Compute Exact Match Ratio
