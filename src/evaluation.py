@@ -67,7 +67,7 @@ class Evaluator:
         predicted = pd.read_csv(pred, sep="\t", names=["ID"] + levels,
                                 converters={0: str, 1: int, 2: int, 3: int}, header=None, skiprows=1)
 
-        predicted.to_csv("predicted_b.csv")
+
         # Check length files
         if (len(ground_truth) != len(predicted)):
             sys.exit('Prediction and gold data have different number of lines.')

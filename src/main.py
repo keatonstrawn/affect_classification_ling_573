@@ -128,16 +128,16 @@ def main(config):
                                 features=features,
                                 embedding_features=embedding_features)
 
-    train_pred.to_csv("training_predictions.csv")
-    
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
-    val_pred.to_csv("validation_predictions.csv")
+
 
     # View a sample of the results
-    train_df.head()
-    val_df.head()
+    # train_df.head()
+    # val_df.head()
+    # train_pred.to_csv("training_predictions.csv")
+    # val_pred.to_csv("validation_predictions.csv")
 
     # create evaluation files based on val_pred
     make_eval_files(val_pred, input_tsv_files['language'])
