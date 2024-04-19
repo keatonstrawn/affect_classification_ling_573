@@ -21,6 +21,7 @@
         }
   },
   "evaluation": {
+        "output_file": "random_forest_scores.txt",
         "metrics": "F1",
         "data_subset": "devtest",
         "results_dir": "results/devtest"
