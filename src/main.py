@@ -144,6 +144,7 @@ def main(config):
 
     # Instantiate the evaluator and run it
     myEvaluator = Evaluator("results/input", "results/output", config['evaluation']['output_file'])
+
     myEvaluator.main()
     
        
