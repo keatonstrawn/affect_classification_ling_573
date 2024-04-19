@@ -10,7 +10,8 @@ import io
 class Evaluator:
 
 
-    def __init__(self, input_dir, output_dir):
+    def __init__(self, input_dir, output_dir, output_file):
+
             """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in
             SemEval 2019 task 5.
 
@@ -24,6 +25,8 @@ class Evaluator:
             # Initialize the directories
             self.input_dir = input_dir
             self.output_dir = output_dir
+            self.output_file = output_file
+
            
 
 
@@ -118,7 +121,8 @@ class Evaluator:
         submission_path = os.path.join(res_dir, os.listdir(res_dir)[0])
         task = submission_path.split('/')[-1].replace('.tsv', '').split('_')[1]
 
-        output_file = open(os.path.join(self.output_dir, 'scores.txt'), "w")
+        output_file = open(os.path.join(self.output_dir, self.output_file), "w")
+
 
         for file_name in os.listdir(res_dir):
             submission_path = os.path.join(res_dir, file_name)

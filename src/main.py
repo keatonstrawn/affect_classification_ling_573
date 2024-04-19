@@ -143,7 +143,8 @@ def main(config):
     make_eval_files(val_pred, input_tsv_files['language'])
 
     # Instantiate the evaluator and run it
-    myEvaluator = Evaluator("results/input", "results/output")
+    myEvaluator = Evaluator("results/input", "results/output", config['evaluation']['output_file'])
+
     myEvaluator.main()
     
        
