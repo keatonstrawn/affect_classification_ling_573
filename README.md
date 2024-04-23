@@ -33,10 +33,11 @@ To set up the project environment, follow the steps below:
    ```
 Due to the size of the GloVe pretrained embeddings, we cannot store them in our GitHub repository. The user must separately download this file and place it in the specified directory.
 To provide the model with GloVe embedding data, follow the steps below:
-1. Go to the following link: https://zenodo.org/records/3237458
+1. Go to the following link: https://zenodo.org/records/3237458 (please note that there are many sites where this file can be found. If you are unconfortable with the one provided, you should be able to find an alternative with a quick google search)
 2. Here, scroll down and download the .gz file labeled "glove.twitter.27B.25d.txt.gz"
 3. Once downloaded, unzip this file
 4. Add the file "glove.twitter.27B.25d.txt" to the subdirectory `./data/`
+
 
 
 ## Components
