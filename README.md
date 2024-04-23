@@ -68,23 +68,31 @@ To provide the model with GloVe embedding data, follow the steps below:
 To run the system from Condor:
 
 1.   Activate the virtual environment and correctly download and place the GloVe embeddings file (see "Setup" above)
-3.   Navigate to the main project directory:
+2.   Navigate to the scripts directory:
    ```bash
-   cd affect_classification_ling_573
+   cd ./scripts
    ```
-3.   Submit the command file to Condor:
+3.    Change the permission of the run_main.sh script to make it executable:
+   ```bash
+   chmod +x run_main.sh
+   ```
+4.   Navigate to the main project directory:
+   ```bash
+   cd ..
+   ```
+5.   Submit the command file to Condor:
    ```bash
    condor_submit D2.cmd
    ```
-4.   Check system progress:
+6.   Check system progress:
    ```bash
    condor_q
    ```
-5.   To see system performance evaluation, use the following command to navigate to the system scores directory from the home directory:
+7.   To see system performance evaluation, use the following command to navigate to the system scores directory from the home directory:
    ```bash
    cd ./results/output
    ```
-6.   To see the system's prediction files, use the following command to navigate to the evaluation data directory from the home directory:
+8.   To see the system's prediction files, use the following command to navigate to the evaluation data directory from the home directory:
    ```bash
    cd ./results/input/res
    ```
