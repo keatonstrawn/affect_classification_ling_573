@@ -15,8 +15,7 @@
             "approach": "random_forest" ,
             "params": {
                 "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
-                "keep_training_data": "False" ,
-                "param3": "put_param_here"
+                "keep_training_data": "False"
             }
         }
   },
