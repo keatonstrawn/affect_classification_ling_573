@@ -4,10 +4,10 @@ import re
 import pandas as pd
 
 
-from data_processor import DataProcessor
-from feature_engineering import FeatureEngineering
-from classification_model import ClassificationModel
-from evaluation import Evaluator
+from src.data_processor import DataProcessor
+from src.feature_engineering import FeatureEngineering
+from src.classification_model import ClassificationModel
+from src.evaluation import Evaluator
 
 
 
@@ -132,6 +132,11 @@ def main(config):
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
+    # Save the results in the outputs directory
+    train_res = train_pred[['HS_prediction', 'TR_prediction', 'AG_prediction']]
+    train_res.to_csv('outputs/D2/train_results.csv')
+    val_res = val_pred[['HS_prediction', 'TR_prediction', 'AG_prediction']]
+    val_res.to_csv('outputs/D2/validation_results.csv')
 
     # View a sample of the results
     # train_df.head()

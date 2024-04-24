@@ -1,7 +1,3 @@
-taskA_fscore: 0.29922915206727396
-taskA_precision: 0.7135
-taskA_recall: 0.5
-taskA_accuracy: 0.427
 
 taskB_fscore_macro: 0.36961565029813936
 taskB_emr: 0.173
@@ -17,3 +13,7 @@ taskB_fscore_AG: 0.16943521594684385
 taskB_precision_AG: 0.602
 taskB_recall_AG: 0.5
 taskB_accuracy_AG: 0.204
+taskA_fscore: 0.29922915206727396
+taskA_precision: 0.7135
+taskA_recall: 0.5
+taskA_accuracy: 0.427
