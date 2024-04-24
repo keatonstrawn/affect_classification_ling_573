@@ -20,6 +20,6 @@
         }
   },
   "evaluation": {
-        "output_file": "random_forest_scores.txt"
+        "output_file": "D2_scores.out"
   }
 }
