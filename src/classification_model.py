@@ -328,7 +328,8 @@ if __name__ == '__main__':
 
     # Generate the features for model training
     myFE = FeatureEngineering()
-    train_df = myFE.fit_transform(myDP.processed_data['train'])
+    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
+                                  embedding_dim=25)
     val_df = myFE.transform(myDP.processed_data['validation'])
 
     # Instantiate the model

@@ -90,11 +90,11 @@ To run the system from Condor:
    ```
 7.   To see system performance evaluation, use the following command to navigate to the system scores directory from the home directory:
    ```bash
-   cd ./results/output
+   cd ./D2
    ```
 8.   To see the system's prediction files, use the following command to navigate to the evaluation data directory from the home directory:
    ```bash
-   cd ./results/input/res
+   cd ./outputs/D2/res
    ```
 
 
