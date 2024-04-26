@@ -30,7 +30,7 @@
         }
   },
   "evaluation": {
-        "output_file": "D2_scores.out" ,
-        "output_directory": "outputs/D2"
+        "output_file": "D3_scores.out" ,
+        "output_directory": "outputs/D3_test"
   }
 }

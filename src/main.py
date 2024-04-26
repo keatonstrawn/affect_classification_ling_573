@@ -52,8 +52,8 @@ def make_eval_files(df, language):
     pred_a_df = df[["HS_prediction"]].copy()
 
     # establish file paths, save dataframes as .tsv files
-    goldpath = "".join(["outputs/D2/ref/", lang, ".tsv"])
-    predpath_a = "".join(["outputs/D2/res/", lang, "_a.tsv"])
+    goldpath = "".join(["outputs/D3_test/ref/", lang, ".tsv"])
+    predpath_a = "".join(["outputs/D3_test/res/", lang, "_a.tsv"])
     gold_df.to_csv(goldpath, sep="\t") 
     pred_a_df.to_csv(predpath_a, sep="\t")
 
@@ -64,7 +64,7 @@ def make_eval_files(df, language):
 
     pred_b_df = pred_b_df.rename(columns={"HS_prediction": "HS", "TR_prediction": "TR", "AG_prediction": "AG"})
     # establish file path, save dataframe as .tsv files
-    predpath_b = "".join(["outputs/D2/res/", lang, "_b.tsv"])
+    predpath_b = "".join(["outputs/D3_test/res/", lang, "_b.tsv"])
     pred_b_df.to_csv(predpath_b, sep="\t")
 
 
@@ -113,7 +113,7 @@ def main(config):
     train_pred = myClassifier.fit(train_df,
                                 tasks=config['model']['classification']['params']['tasks'],
                                 keep_training_data=config['model']['classification']['params']['keep_training_data'],
-                                parameters=config['model']['classification']['params']['model_parameters'],
+                                parameters=config['model']['classification']['params']['model_params'],
                                 features=config['model']['classification']['params']['features'],
                                 embedding_features=config['model']['classification']['params']['embedding_features'])
 
