@@ -8,6 +8,7 @@ import pandas as pd
 
 from typing import Optional, Dict, Tuple, List
 from copy import deepcopy
+from spellchecker import SpellChecker
 
 
 # Define class to handle data processing
@@ -170,6 +171,33 @@ class DataProcessor:
 
         return cleaned_tweet
 
+    def _spellcheck(tweet: str, language: str = 'en') -> str:
+        """Replaces any misspelled words that appear in the text with their correct predicted word from the Brown Corpus.
+
+                Arguments:
+                ----------
+                tweet
+                    The tweet text.
+                language
+                    The primary language that the tweet is written in. 'en' specified English and 'es' specifies Spanish.
+
+                Returns:
+                --------
+                the tweet text with misspelled words replaced with their proper spelling
+                """
+        if language == 'en':
+            spell = SpellChecker()
+        else:
+            spell = SpellChecker(language='es')
+        tweet_list = tweet.split()
+        cleaned_tweet_list = []
+        for w in tweet_list:
+            correct_w = spell.correction(w)
+            cleaned_tweet_list.append(correct_w)
+        cleaned_tweet = ' '.join(cleaned_tweet_list)
+
+        return cleaned_tweet
+
     def _remove_and_count_punctuation(self, tweet: str, symbol_list: Optional[List[str]] = None) -> Tuple[str, dict]:
         """Removes all punctuation from the tweet text and returns the count of the specified punctuation symbols.
 
@@ -258,6 +286,9 @@ class DataProcessor:
 
         # Get percent of the tweet that is capitalized and lowercase the tweet
         cleaned_tweet, capital_pct = self._get_capital_perc_and_lowercase(cleaned_tweet)
+
+        # Replace misspelled words with proper spellings
+        cleaned_tweet = self._spellcheck(cleaned_tweet, language)
 
         # Replace emojis with names
         cleaned_tweet = self._replace_emojis(cleaned_tweet, language)
