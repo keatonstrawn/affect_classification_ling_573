@@ -7,6 +7,7 @@ import torch
 import numpy as np
 import pandas as pd
 import scipy.stats as st
+import tensorflow_hub as hub
 
 from nrclex import NRCLex
 from nltk.tokenize import word_tokenize
@@ -251,8 +252,15 @@ class FeatureEngineering:
         # load the embeddings from tensorflow hub
         embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
 
+        # function to reformat cleaned text for proper embedding
+        def embed_text(text):
+            embeddings= embed([text])
+            embeddings_flat = np.array(embeddings).flatten()
+            return embeddings_flat
+
+        
         # get the embeddings for each row and save to a new column in the dataframe
-        df['Universal_Sentence_Encoder_embeddings'] = df['cleaned_text'].apply(embed)
+        df['Universal_Sentence_Encoder_embeddings'] = df['cleaned_text'].apply(embed_text)
 
     def normalize_feature(self, data: pd.DataFrame, feature_columns: List[str],
                           normalization_method: Optional[str] = None) -> pd.DataFrame:
@@ -390,6 +398,9 @@ class FeatureEngineering:
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, embedding_dim))
 
+        # Get Universal Sentence embeddings
+        self.get_universal_sent_embeddings(transformed_data)
+
         # Update the fitted flag
         self.fitted = True
 
@@ -429,6 +440,9 @@ class FeatureEngineering:
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, self.embedding_dim))
+
+        # Get Universal Sentence embeddings
+        self.get_universal_sent_embeddings(transformed_data)
 
         return transformed_data
 
