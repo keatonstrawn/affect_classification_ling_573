@@ -223,8 +223,6 @@ class ClassificationModel:
         # Save task list
         self.tasks = tasks
 
-
-
         # Fit and predict baseline model
         if self.model_type == 'baseline':
             if keep_training_data:
@@ -244,6 +242,7 @@ class ClassificationModel:
                                  'min_samples_split': 0.1, 'min_samples_leaf': 3, 'max_features': 'sqrt',
                                  'bootstrap': True, 'n_jobs': None, 'random_state': 42,
                                  'class_weight': 'balanced_subsample', 'max_samples': 0.2}
+            
             # Replace specified defaults and save the provided model parameters
             if parameters is not None:
                 for p in parameters.keys():

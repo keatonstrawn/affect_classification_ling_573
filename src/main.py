@@ -107,7 +107,6 @@ def main(config):
                                 embedding_file_path= config['model']['feature_engineering']['embedding_path'],
                                 embedding_dim=25)
     
-    train_df.to_csv("test.csv")
     # Transform
     val_df = myFE.transform(myDP.processed_data['validation'])
 
@@ -130,8 +129,6 @@ def main(config):
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
-
-    val_pred.to_csv('outputs/D2/validation_df.csv')
 
     # # Save the results in the outputs directory
     # train_res = train_pred[['HS_prediction', 'TR_prediction', 'AG_prediction']]

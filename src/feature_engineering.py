@@ -151,13 +151,22 @@ class FeatureEngineering:
             embeddings = [model[word] for word in words if word in model.key_to_index]
         elif embedding_type == '2':
             # different form of tokenizing
-            tokens = tokenizer.tokenize(tweet)
-            input_ids = tokenizer.convert_tokens_to_ids(tokens)
+
+
+            input_ids = torch.tensor([tokenizer.encode(tweet)])
             with torch.no_grad():
-                outputs = model(torch.tensor([input_ids]))
+                outputs = model(input_ids)
+
+            # tokens = tokenizer.tokenize(tweet)
+            # input_ids = tokenizer.convert_tokens_to_ids(tokens)
+            # with torch.no_grad():
+            #     outputs = model(torch.tensor([input_ids], dtype=torch.long))
+
             embed = outputs.last_hidden_state[0]
             embed_np = embed.detach().numpy()
-            embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
+            # embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
+            embeddings = [embed_np[i].tolist() for i in range(len(input_ids[0]))]
+            embeddings = np.array(embeddings).flatten()
         else:
             embeddings = [model[word] for word in words if word in model.keys()]
 
@@ -391,6 +400,13 @@ class FeatureEngineering:
         # Get NRC (emotion and sentiment word) counts feature
         transformed_data = self._NRC_counts(transformed_data)
 
+
+        # Get Universal Sentence embeddings
+        self.get_universal_sent_embeddings(transformed_data)
+
+        # Get BERTweet Sentence embeddings
+        # self.get_bertweet_embeddings(transformed_data)
+
         # Get Glove embeddings and aggregate across all words
         self.embedding_file_path = embedding_file_path
         self.embedding_dim = embedding_dim
@@ -398,8 +414,6 @@ class FeatureEngineering:
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, embedding_dim))
 
-        # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
 
         # Update the fitted flag
         self.fitted = True
@@ -435,14 +449,17 @@ class FeatureEngineering:
         # Get NRC values
         transformed_data = self._NRC_counts(transformed_data)
 
+        # Get Universal Sentence embeddings
+        self.get_universal_sent_embeddings(transformed_data)
+
+        # Get BERTweet Sentence embeddings
+        # self.get_bertweet_embeddings(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, self.embedding_dim))
 
-        # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
 
         return transformed_data
 
