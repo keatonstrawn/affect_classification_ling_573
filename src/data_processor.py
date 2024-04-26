@@ -172,7 +172,7 @@ class DataProcessor:
         return cleaned_tweet
 
     def _spellcheck(self, tweet: str, language: str = 'en') -> str:
-        """Replaces any misspelled words that appear in the text with their correct predicted word from the Brown Corpus.
+        """Replaces any misspelled words that appear in the text with their correct predicted word.
 
                 Arguments:
                 ----------
