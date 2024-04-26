@@ -52,8 +52,6 @@ def make_eval_files(df, language):
     pred_a_df = df[["HS_prediction"]].copy()
 
     # establish file paths, save dataframes as .tsv files
-    # goldpath = "".join(["results/input/ref/", lang, ".tsv"])
-    # predpath_a = "".join(["results/input/res/", lang, "_a.tsv"])
     goldpath = "".join(["outputs/D2/ref/", lang, ".tsv"])
     predpath_a = "".join(["outputs/D2/res/", lang, "_a.tsv"])
     gold_df.to_csv(goldpath, sep="\t") 
@@ -66,7 +64,6 @@ def make_eval_files(df, language):
 
     pred_b_df = pred_b_df.rename(columns={"HS_prediction": "HS", "TR_prediction": "TR", "AG_prediction": "AG"})
     # establish file path, save dataframe as .tsv files
-    # predpath_b = "".join(["results/input/res/", lang, "_b.tsv"])
     predpath_b = "".join(["outputs/D2/res/", lang, "_b.tsv"])
     pred_b_df.to_csv(predpath_b, sep="\t")
 
@@ -91,10 +88,8 @@ def main(config):
     # Initialize the class
     myDP = DataProcessor()
     # Load data from disk
-    myDP.load_data(language= input_tsv_files['language'],
-                   filepath = input_tsv_files['filepath']) 
-                #    train_file = input_tsv_files['training'], 
-                #    validation_file = input_tsv_files['devtest'])  
+    myDP.load_data(language=input_tsv_files['language'],
+                   filepath=input_tsv_files['filepath'])
 
     # Clean the text
     myDP.clean_data()
@@ -115,34 +110,22 @@ def main(config):
     
 
     # Train the model
-    features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized',
-                '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy',
-                'sadness', 'surprise', 'trust']
-    embedding_features = ['Aggregate_embeddings']
-
     train_pred = myClassifier.fit(train_df,
                                 tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
                                 keep_training_data=False,
-                                features=features,
-                                embedding_features=embedding_features)
+                                features=config['model']['classification']['features'],
+                                embedding_features=config['model']['classification']['embedding_features'])
 
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
-    # # Save the results in the outputs directory
-    # train_res = train_pred[['HS_prediction', 'TR_prediction', 'AG_prediction']]
-    # train_res.to_csv('outputs/D2/train_results.csv')
-    # val_res = val_pred[['HS_prediction', 'TR_prediction', 'AG_prediction']]
-    # val_res.to_csv('outputs/D2/validation_results.csv')
-
-
     # create evaluation files based on val_pred
     make_eval_files(val_pred, input_tsv_files['language'])
 
     # Instantiate the evaluator and run it
-    # myEvaluator = Evaluator("results/input", "results/output", config['evaluation']['output_file'])
-    myEvaluator = Evaluator("outputs/D2", "outputs/D2", config['evaluation']['output_file'])
+    myEvaluator = Evaluator(config['evaluation']['output_directory'], config['evaluation']['output_directory'],
+                            config['evaluation']['output_file'])
 
     myEvaluator.main()
     

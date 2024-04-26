@@ -16,10 +16,15 @@
             "params": {
                 "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
                 "keep_training_data": "False"
-            }
+            },
+            "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
+                "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
+                "sadness", "surprise", "trust"] ,
+            "embedding_features": ["Aggregate_embeddings"]
         }
   },
   "evaluation": {
-        "output_file": "D2_scores.out"
+        "output_file": "D2_scores.out" ,
+        "output_directory": "outputs/D2"
   }
 }
