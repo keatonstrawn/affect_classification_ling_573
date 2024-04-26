@@ -99,8 +99,8 @@ def main(config):
 
     # Fit
     train_df = myFE.fit_transform(myDP.processed_data['train'], 
-                                embedding_file_path= config['model']['feature_engineering']['embedding_path'],
-                                embedding_dim=25)
+                                embedding_file_path=config['model']['feature_engineering']['embedding_path'],
+                                embedding_dim=config['model']['feature_engineering']['embedding_dim'])
     
     # Transform
     val_df = myFE.transform(myDP.processed_data['validation'])
@@ -111,10 +111,11 @@ def main(config):
 
     # Train the model
     train_pred = myClassifier.fit(train_df,
-                                tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
-                                keep_training_data=False,
-                                features=config['model']['classification']['features'],
-                                embedding_features=config['model']['classification']['embedding_features'])
+                                tasks=config['model']['classification']['params']['tasks'],
+                                keep_training_data=config['model']['classification']['params']['keep_training_data'],
+                                parameters=config['model']['classification']['params']['model_parameters'],
+                                features=config['model']['classification']['params']['features'],
+                                embedding_features=config['model']['classification']['params']['embedding_features'])
 
 
     # Run the model on the validation data
