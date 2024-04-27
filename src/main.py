@@ -118,7 +118,7 @@ def main(config):
     features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized',
                 '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy',
                 'sadness', 'surprise', 'trust']
-    embedding_features = ['Aggregate_embeddings']
+    embedding_features = ['Aggregate_embeddings', 'Universal_Sentence_Encoder_embeddings']
 
     train_pred = myClassifier.fit(train_df,
                                 tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
@@ -135,6 +135,7 @@ def main(config):
     # train_res.to_csv('outputs/D2/train_results.csv')
     # val_res = val_pred[['HS_prediction', 'TR_prediction', 'AG_prediction']]
     # val_res.to_csv('outputs/D2/validation_results.csv')
+
 
 
     # create evaluation files based on val_pred
