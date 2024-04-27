@@ -126,7 +126,6 @@ def main(config):
                                 features=features,
                                 embedding_features=embedding_features)
 
-
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
