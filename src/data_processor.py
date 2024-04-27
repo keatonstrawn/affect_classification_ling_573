@@ -6,7 +6,7 @@ import re
 import emoji
 import pandas as pd
 
-from typing import Optional, Dict, Tuple, List
+from typing import Optional, Dict, Tuple, List, Union
 from copy import deepcopy
 from spellchecker import SpellChecker
 
@@ -171,7 +171,7 @@ class DataProcessor:
 
         return cleaned_tweet
 
-    def _spellcheck(self, tweet: str, language: str = 'en') -> str:
+    def _spellcheck(self, tweet: str, language: str = 'en') -> Union[str, None]:
         """Replaces any misspelled words that appear in the text with their correct predicted word.
 
                 Arguments:
@@ -193,7 +193,11 @@ class DataProcessor:
         cleaned_tweet_list = []
         for w in tweet_list:
             correct_w = spell.correction(w)
-            cleaned_tweet_list.append(correct_w)
+            # If spellchecker can't return a correction then use original word
+            if correct_w is None:
+                cleaned_tweet_list.append(w)
+            else:
+                cleaned_tweet_list.append(correct_w)
         cleaned_tweet = ' '.join(cleaned_tweet_list)
 
         return cleaned_tweet
@@ -408,7 +412,6 @@ if __name__ == '__main__':
 
     # Load data from disk
     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-
 
     # Clean the text
     myDP.clean_data()
