@@ -203,15 +203,29 @@ class ClassificationModel:
         assert len(features) > 0 or len(embedding_features) > 0, \
             'At least one feature must be provided in order to train a classification model'
 
-        # Specify which columns contain the target class(es)
-        task_cols = [self.target_map[t] for t in self.tasks]
-
-        # Combine target columns into one column if multiple tasks are given
-        y = train_data[task_cols].apply(lambda row: ','.join(row.values.astype(str)), axis=1)
-
-        # Identify all feature and embedding columns
+        # Identify all feature columns
         X_features = train_data[features].values if features else None
-        X_embedding_features = train_data[embedding_features].values if embedding_features else None
+
+        # Turn embedding_features into one-dimensional features
+        # This is done because the SVM cannot handle features of different dimensions.
+        if embedding_features:
+
+            embedding_ft_stats = []
+            for feature in embedding_features:
+                feature_array = train_data[feature].apply(np.array)
+
+                # Calculate mean, median, and standard deviation for each feature
+                feature_means = feature_array.apply(np.mean)
+                feature_medians = feature_array.apply(np.median)
+                feature_stdevs = feature_array.apply(np.std)
+
+                # Combine stats into a single matrix
+                feature_stats = np.column_stack((feature_means, feature_medians, feature_stdevs))
+                embedding_ft_stats.append(feature_stats)
+
+        X_embedding_features = np.hstack(embedding_ft_stats)
+
+        # X_embedding_features = train_data[embedding_features].values if embedding_features else None
 
         # Save model features
         self.features = features
@@ -224,6 +238,13 @@ class ClassificationModel:
             X_ft = X_embedding_features
         else:
             X_ft = X_features
+
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+
+        # Combine target columns into one column if multiple tasks are given
+        y = train_data[task_cols].apply(lambda row: ','.join(row.values.astype(str)), axis=1)
 
         # Encode the target labels
         label_encoder = MultiLabelBinarizer()
@@ -389,16 +410,27 @@ class ClassificationModel:
                 n_cols += 1
 
         if self.model_type == 'svm':
-
-            # Specify which columns contain the target class(es)
-            task_cols = [self.target_map[t] for t in self.tasks]
-
-            # Combine target columns into one column if multiple tasks are given
-            y = data[task_cols].apply(lambda row: ','.join(row.values.astype(str)), axis=1)
-
-            # Identify all feature and embedding columns
+            # Identify all feature columns
             X_features = data[self.features].values if self.features else None
-            X_embedding_features = data[self.embedding_features].values if self.embedding_features else None
+
+            # Turn embedding_features into one-dimensional features
+            # This is done because the SVM cannot handle features of different dimensions.
+            if self.embedding_features:
+
+                embedding_ft_stats = []
+                for feature in self.embedding_features:
+                    feature_array = data[feature].apply(np.array)
+
+                    # Calculate mean, median, and standard deviation for each feature
+                    feature_means = feature_array.apply(np.mean)
+                    feature_medians = feature_array.apply(np.median)
+                    feature_stdevs = feature_array.apply(np.std)
+
+                    # Combine stats into a single matrix
+                    feature_stats = np.column_stack((feature_means, feature_medians, feature_stdevs))
+                    embedding_ft_stats.append(feature_stats)
+
+            X_embedding_features = np.hstack(embedding_ft_stats)
 
             # Concatenate features based on which are present:
             if X_features is not None and X_embedding_features is not None:
@@ -408,23 +440,12 @@ class ClassificationModel:
             else:
                 X_ft = X_features
 
-            # Encode the target labels
-            label_encoder = MultiLabelBinarizer()
-            y_encoded = label_encoder.fit_transform(y)
-            self.label_encoder = label_encoder
-
-            # Train SVM model
-            clf = SVC(kernel='rbf', C=1.0, probability=True)
-            clf.fit(X_ft, y_encoded)
-
-            # Save the fit model
-            self.svm_classifier = clf
 
             # Generate predictions on training data
-            y_pred_encoded = clf.predict(X_ft)
+            y_pred_encoded = self.svm_classifier.predict(X_ft)
 
             # Decode the predicted labels
-            y_pred = label_encoder.inverse_transform(y_pred_encoded)
+            y_pred = self.label_encoder.inverse_transform(y_pred_encoded)
 
             # Create a DataFrame for predictions
             pred_df = deepcopy(data)
@@ -434,6 +455,53 @@ class ClassificationModel:
                 n_cols += 1
 
             return pred_df
+
+        # if self.model_type == 'svm':
+
+        #     # Specify which columns contain the target class(es)
+        #     task_cols = [self.target_map[t] for t in self.tasks]
+
+        #     # Combine target columns into one column if multiple tasks are given
+        #     y = data[task_cols].apply(lambda row: ','.join(row.values.astype(str)), axis=1)
+
+        #     # Identify all feature and embedding columns
+        #     X_features = data[self.features].values if self.features else None
+        #     X_embedding_features = data[self.embedding_features].values if self.embedding_features else None
+
+        #     # Concatenate features based on which are present:
+        #     if X_features is not None and X_embedding_features is not None:
+        #         X_ft = np.column_stack((X_features, X_embedding_features))                
+        #     elif X_embedding_features is not None:
+        #         X_ft = X_embedding_features
+        #     else:
+        #         X_ft = X_features
+
+        #     # Encode the target labels
+        #     label_encoder = MultiLabelBinarizer()
+        #     y_encoded = label_encoder.fit_transform(y)
+        #     self.label_encoder = label_encoder
+
+        #     # Train SVM model
+        #     clf = SVC(kernel='rbf', C=1.0, probability=True)
+        #     clf.fit(X_ft, y_encoded)
+
+        #     # Save the fit model
+        #     self.svm_classifier = clf
+
+        #     # Generate predictions on training data
+        #     y_pred_encoded = clf.predict(X_ft)
+
+        #     # Decode the predicted labels
+        #     y_pred = label_encoder.inverse_transform(y_pred_encoded)
+
+        #     # Create a DataFrame for predictions
+        #     pred_df = deepcopy(data)
+        #     n_cols = len(pred_df.columns)
+        #     for t in task_cols:
+        #         pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+        #         n_cols += 1
+
+        #     return pred_df
 
 
 
