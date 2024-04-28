@@ -238,8 +238,10 @@ class ClassificationModel:
         # Specify which columns contain the target class(es)
         task_cols = [self.target_map[t] for t in self.tasks]
 
+        self.task_cols = task_cols
+
         # Combine target columns into one column if multiple tasks are given
-        y = train_data[task_cols].apply(lambda row: ','.join(row.values.astype(str)), axis=1)
+        y = train_data[task_cols].values
 
         # Train SVM model
         clf = SVC(kernel='rbf', C=1.0, probability=True)
@@ -254,10 +256,8 @@ class ClassificationModel:
 
         # Create a DataFrame for predictions
         pred_df = deepcopy(train_data)
-        n_cols = len(pred_df.columns)
-        for t in task_cols:
-            pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
-            n_cols += 1
+        for i, col in enumerate(task_cols):
+            pred_df[f'{col}_prediction'] = y_pred[:, i]
 
         return pred_df
 
@@ -434,10 +434,8 @@ class ClassificationModel:
 
             # Create a DataFrame for predictions
             pred_df = deepcopy(data)
-            n_cols = len(pred_df.columns)
-            for t in task_cols:
-                pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
-                n_cols += 1
+            for i, col in enumerate(self.task_cols):
+                pred_df[f'{col}_prediction'] = y_pred[:, i]
 
             return pred_df
 
