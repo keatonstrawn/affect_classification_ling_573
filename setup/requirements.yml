@@ -19,8 +19,8 @@ dependencies:
   - pip:
     - contractions
     - nrclex
-    - pyspellchecker
     - tensorflow-hub
+    - pyspellchecker
 
 
 
