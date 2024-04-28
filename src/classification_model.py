@@ -5,14 +5,9 @@ the features generated from the FeatureEngineering class."""
 import pandas as pd
 import numpy as np
 
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+
 from sklearn.svm import SVC
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import FunctionTransformer
-# from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.multioutput import MultiOutputClassifier
 from sklearn.ensemble import RandomForestClassifier
 from typing import List, Optional, Dict
 from copy import deepcopy
@@ -246,23 +241,16 @@ class ClassificationModel:
         # Combine target columns into one column if multiple tasks are given
         y = train_data[task_cols].apply(lambda row: ','.join(row.values.astype(str)), axis=1)
 
-        # Encode the target labels
-        label_encoder = MultiLabelBinarizer()
-        y_encoded = label_encoder.fit_transform(y)
-        self.label_encoder = label_encoder
-
         # Train SVM model
         clf = SVC(kernel='rbf', C=1.0, probability=True)
-        clf.fit(X_ft, y_encoded)
+        multi_target_clf = MultiOutputClassifier(clf)
+        multi_target_clf.fit(X_ft, y)
 
         # Save the fit model
-        self.svm_classifier = clf
+        self.multi_target_classifier = multi_target_clf
 
         # Generate predictions on training data
-        y_pred_encoded = clf.predict(X_ft)
-
-        # Decode the predicted labels
-        y_pred = label_encoder.inverse_transform(y_pred_encoded)
+        y_pred = multi_target_clf.predict(X_ft)
 
         # Create a DataFrame for predictions
         pred_df = deepcopy(train_data)
@@ -442,10 +430,7 @@ class ClassificationModel:
 
 
             # Generate predictions on training data
-            y_pred_encoded = self.svm_classifier.predict(X_ft)
-
-            # Decode the predicted labels
-            y_pred = self.label_encoder.inverse_transform(y_pred_encoded)
+            y_pred = self.multi_target_classifier.predict(X_ft)
 
             # Create a DataFrame for predictions
             pred_df = deepcopy(data)
