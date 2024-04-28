@@ -20,6 +20,7 @@ dependencies:
     - contractions
     - nrclex
     - pyspellchecker
+    - tensorflow-hub
 
 
 
