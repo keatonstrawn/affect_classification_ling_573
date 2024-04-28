@@ -17,7 +17,7 @@ from typing import List, Union, Optional, Dict
 
 # for Universal Sentence Encoder -- need to add tensorflow to environment.yml file
 #import tensorflow as tf
-#import tensorflow_hub as hub
+import tensorflow_hub as hub
 
 
 # Define helper function to aggregate embeddings
