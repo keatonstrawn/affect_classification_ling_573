@@ -463,32 +463,30 @@ class FeatureEngineering:
 
         return transformed_data
 
-''' The lines below are commented out so that all code is run through main.py
-'''
-# if __name__ == '__main__':
 
-#     # Imports
-#     from data_processor import DataProcessor
+if __name__ == '__main__':
 
-
-#     # Load and clean the raw data
-#     myDP = DataProcessor()
-#     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-#     myDP.clean_data()
+    # Imports
+    from data_processor import DataProcessor
 
 
-#     # Instantiate the FeatureEngineering object
-#     myFE = FeatureEngineering()
+    # Load and clean the raw data
+    myDP = DataProcessor()
+    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+    myDP.clean_data()
 
-    #   # Fit
-    #   train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
-    #                                 embedding_dim=25)
-    #   # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
-    #   # local machine to run this portion of the system.
+    # Instantiate the FeatureEngineering object
+    myFE = FeatureEngineering()
 
-#     # Transform
-#     val_df = myFE.transform(myDP.processed_data['validation'])
+    # Fit
+    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
+                                embedding_dim=25)
+    # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+    # local machine to run this portion of the system.
 
-#     # View a sample of the results
-#     train_df.head()
-#     val_df.head()
+    # Transform
+    val_df = myFE.transform(myDP.processed_data['validation'])
+
+    # View a sample of the results
+    train_df.head()
+    val_df.head()
