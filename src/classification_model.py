@@ -193,6 +193,29 @@ class ClassificationModel:
 
     def _fit_svm_model(self, train_data: pd.DataFrame, tasks: List[str], features: Optional[List[str]],
                         embedding_features: Optional[List[str]]) -> pd.DataFrame:
+        """Trains a support vector machine to predict the target category/categories specified in the tasks list.
+
+        Arguments:
+        ----------
+        train_data
+            The data set, with the complete set of engineered features, that is used to train the model.
+        features
+            The set of features to be used in the classification task.
+        tasks
+            The classification task(s) that the model is being trained to predict. If a list of tasks is given then the
+            same model is trained to predict each of those labels simultaneously. To train an individual model for each
+            task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
+            'hate_speech_detection', 'target_or_general', 'aggression_detection'.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
+
+
+        Returns:
+        --------
+        A copy of the original dataframe with new columns appended that contain the random forest classifier predictions
+        for the specified training task(s).
+        """
+
         
         # At least one of features or embedding_features must be non-empty
         assert len(features) > 0 or len(embedding_features) > 0, \
@@ -209,13 +232,15 @@ class ClassificationModel:
             for feature in embedding_features:
                 feature_array = train_data[feature].apply(np.array)
 
-                # Calculate mean, median, and standard deviation for each feature
+                # Calculate features for each embedding
                 feature_means = feature_array.apply(np.mean)
-                feature_medians = feature_array.apply(np.median)
+                # feature_medians = feature_array.apply(np.median)
                 feature_stdevs = feature_array.apply(np.std)
+                # feature_skewness = feature_array.apply(lambda x: pd.Series(x).skew())
+                # feature_kurtosis = feature_array.apply(lambda x: pd.Series(x).kurtosis())
 
                 # Combine stats into a single matrix
-                feature_stats = np.column_stack((feature_means, feature_medians, feature_stdevs))
+                feature_stats = np.column_stack((feature_means, feature_stdevs))
                 embedding_ft_stats.append(feature_stats)
 
         X_embedding_features = np.hstack(embedding_ft_stats)
@@ -243,7 +268,7 @@ class ClassificationModel:
         y = train_data[task_cols].values
 
         # Train SVM model
-        clf = SVC(kernel='rbf', C=1.0, probability=True)
+        clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0, probability=True) # highest performance hyperparameter setup after some tuning
         multi_target_clf = MultiOutputClassifier(clf)
         multi_target_clf.fit(X_ft, y)
 
@@ -335,7 +360,7 @@ class ClassificationModel:
 
             # Save the model features
             assert features is not None or embedding_features is not None, \
-                'At least one feature must be provided in order to tran a Support Vector Machine classification model.'
+                'At least one feature must be provided in order to train a Support Vector Machine classification model.'
 
             # train the classifiers
             pred_df = self._fit_svm_model(train_data, tasks, features, embedding_features)
@@ -408,14 +433,17 @@ class ClassificationModel:
                 for feature in self.embedding_features:
                     feature_array = data[feature].apply(np.array)
 
-                    # Calculate mean, median, and standard deviation for each feature
+                    # Calculate features for each embedding
                     feature_means = feature_array.apply(np.mean)
-                    feature_medians = feature_array.apply(np.median)
+                    # feature_medians = feature_array.apply(np.median)
                     feature_stdevs = feature_array.apply(np.std)
+                    # feature_skewness = feature_array.apply(lambda x: pd.Series(x).skew())
+                    # feature_kurtosis = feature_array.apply(lambda x: pd.Series(x).kurtosis())
 
                     # Combine stats into a single matrix
-                    feature_stats = np.column_stack((feature_means, feature_medians, feature_stdevs))
+                    feature_stats = np.column_stack((feature_means, feature_stdevs))
                     embedding_ft_stats.append(feature_stats)
+
 
             X_embedding_features = np.hstack(embedding_ft_stats)
 

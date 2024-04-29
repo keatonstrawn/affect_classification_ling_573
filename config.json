@@ -13,7 +13,7 @@
             "embedding_dim": 25
         },
         "classification": {
-            "approach": "random_forest" ,
+            "approach": "svm" ,
             "params": {
                 "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
                 "keep_training_data": "False" ,
