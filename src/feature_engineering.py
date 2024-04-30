@@ -405,7 +405,7 @@ class FeatureEngineering:
         self.get_universal_sent_embeddings(transformed_data)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
         self.embedding_file_path = embedding_file_path
@@ -453,7 +453,7 @@ class FeatureEngineering:
         self.get_universal_sent_embeddings(transformed_data)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)

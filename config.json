@@ -20,7 +20,7 @@
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
                   "sadness", "surprise", "trust"] ,
-                "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings"] ,
+                "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings", "BERTweet_embeddings"] ,
                 "model_params": {
                   "n_estimators": 400, "criterion": "entropy", "max_depth": null, "min_samples_split": 0.1,
                     "min_samples_leaf": 3, "max_features": "sqrt", "bootstrap": true, "n_jobs": null,
