@@ -117,7 +117,6 @@ def main(config):
                                 features=config['model']['classification']['params']['features'],
                                 embedding_features=config['model']['classification']['params']['embedding_features'])
 
-
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
