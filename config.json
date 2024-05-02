@@ -10,7 +10,8 @@
   "model": {
         "feature_engineering": {
             "embedding_path": "data/glove.twitter.27B.25d.txt" ,
-            "embedding_dim": 25
+            "embedding_dim": 25,
+            "slang_dict_path": "data/SlangSD.txt"
         },
         "classification": {
             "approach": "svm" ,
@@ -19,7 +20,7 @@
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
-                  "sadness", "surprise", "trust"] ,
+                  "sadness", "surprise", "trust", "slangscore"] ,
                 "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings", "BERTweet_embeddings"] ,
                 "model_params": {
                   "n_estimators": 400, "criterion": "entropy", "max_depth": null, "min_samples_split": 0.1,
