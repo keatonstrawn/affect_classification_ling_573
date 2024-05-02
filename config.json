@@ -5,7 +5,9 @@
             "training": "data/train_en.tsv" ,
             "devtest": "data/dev_en.tsv" ,
             "language": "english"
-        }
+        },
+        "save_or_load": "save",
+        "processed_data_dir": "data/processed_data/"
   },
   "model": {
         "feature_engineering": {
