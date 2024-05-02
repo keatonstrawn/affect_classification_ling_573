@@ -17,6 +17,7 @@ class ExtendedNRCLex():
     def __init__(self):
         self.glove_model = None
         self.embedding_classifier = None
+        self.classes = []
 
     # Method to train the logistic regression
     def fit(self, embedding_file_path: str = 'data/glove.twitter.27B.25d.txt') -> None:
@@ -57,6 +58,7 @@ class ExtendedNRCLex():
                     else:
                         y_vec[emo].append(0)
         y_vec = pd.DataFrame(y_vec)
+        self.classes = y_vec.columns
         x_vec = pd.DataFrame(x_vec)
 
         # # Commented out - Included to investigate results of initial classifier
@@ -118,8 +120,6 @@ class ExtendedNRCLex():
                     nrc_vals = np.array(nrc_vals)
                 res = res + nrc_vals
         res = res / len(text_vec)
-
-        # TODO: check that class labels are ordered as expected in above proba call
 
         return res
 

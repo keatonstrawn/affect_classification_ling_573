@@ -9,11 +9,14 @@ import pandas as pd
 import scipy.stats as st
 import tensorflow_hub as hub
 
+from src.nrc_lex_classifier import ExtendedNRCLex
+
 from nrclex import NRCLex
 from nltk.tokenize import word_tokenize
 from gensim.models import KeyedVectors
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
 from typing import List, Union, Optional, Dict
+from copy import deepcopy
 
 # for Universal Sentence Encoder -- need to add tensorflow to environment.yml file
 #import tensorflow as tf
@@ -72,8 +75,11 @@ class FeatureEngineering:
         self.embedding_file_path = None
         self.embedding_dim = None
 
-    def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
+        # Save extended-NRC info
+        self.nrc_embeddings = None
+        self.nrc = None
 
+    def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
         positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
@@ -90,24 +96,24 @@ class FeatureEngineering:
         -------
         The original dataset with ten new columns that contain the new emotion features generated for each tweet in the
         dataset.
-
         """
         # add ten columns to the end of the dataframe, representing the eight emotional dimensions of NRC
         emotions = ['negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
         for emotion in emotions:
-            data[emotion] = 0
+            data[emotion] = 0.0
         
         # iterate over each tweet to get counts of each emotion classification
         for index, row in data.iterrows():
-            text = word_tokenize(row['cleaned_text'])
+            if row['cleaned_text'] != '':
+                text = word_tokenize(row['cleaned_text'])
 
-            # iterate over each word in the tweet, add counts to emotion vector
-            for word in text:
-                emotion = NRCLex(word)
-                if emotion is not None:
-                    emolist = emotion.affect_list
-                    for emo in emolist:
-                        data.at[index, emo] += 1
+                # iterate over each word in the tweet, add counts to emotion vector
+                for word in text:
+                    emotion = NRCLex(word)
+                    if emotion is not None:
+                        emolist = emotion.affect_list
+                        for emo in emolist:
+                            data.at[index, emo] += 1
 
         # divide by total count of emo markers to get proportions not frequency counts
         # Replace 0 values with NaN to prevent error with dividing by zero
@@ -119,6 +125,55 @@ class FeatureEngineering:
         # data.to_csv('test.txt', sep=',', header=True)
 
         return data
+
+    def _extended_NRC_counts(self, data: pd.DataFrame, embedding_file: str):
+        """This method uses GloVe embeddings and data from the NRC Word-Emotion Association Lexicon, which labels words
+        with either a 1 or 0 based on the presence or absence of each of the following emotional dimensions: anger,
+        anticipation, disgust, fear, joy, negative, positive, sadness, surprise, trust. A classification model is
+        trained on GloVe embeddings to predict the affiliated NRC emotion and valence values. This extends the basic
+        NRC counts to provide counts for any word/sub-word for which one can generate a GloVe embedding. The
+        probabilities predicted for each category are summed across each of the ten dimensions, across all the words in
+        a tweet, then divides by the total number of words. These proportions are added on to the end of the dataframe.
+
+
+        Arguments:
+        ---------
+        data
+            The data for which the feature is to be generated
+        embeddings_file
+            Points to the file containing the GloVe embeddings.
+
+        Returns:
+        -------
+        The original dataset with ten new columns that contain the new emotion features generated for each tweet in the
+        dataset.
+        """
+
+        # Initialize and train the NRC classifier
+        if not self.fitted:
+            NewNRCLex = ExtendedNRCLex()
+            NewNRCLex.fit(embedding_file)
+            self.nrc = NewNRCLex
+        else:
+            NewNRCLex = self.nrc
+        emo_classes = NewNRCLex.classes
+        emo_classes = emo_classes + '_ext'
+
+        # iterate over each tweet to get counts of each emotion classification
+        for emo in emo_classes:
+            data[emo] = 0.0
+        for index, row in data.iterrows():
+            if row['cleaned_text'] != '':
+                text = row['cleaned_text']
+                if len(text) > 0:
+                    res = NewNRCLex.transform(text, res_type='prob')
+                    for i in range(len(res)):
+                        emo = emo_classes[i]
+                        data.at[index, emo] = res[i]
+
+        return data
+
+
 
     def embeddings_helper(self, tweet: str, model: Union[Dict, KeyedVectors, PreTrainedModel], embedding_type: str,
                           tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
@@ -366,7 +421,8 @@ class FeatureEngineering:
 
         return data
 
-    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int) -> pd.DataFrame:
+    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int,
+                      nrc_embedding_file: str) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -389,16 +445,19 @@ class FeatureEngineering:
 
         # Get the training data, to be used for fitting
         self.train_data = train_data
+        self.train_data['cleaned_text'].fillna('', inplace=True)
 
 
         # Normalize count features from data cleaning process
-        transformed_data = self.normalize_feature(data=train_data,
+        transformed_data = self.normalize_feature(data=self.train_data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'],
                                                   normalization_method='z_score')
 
 
         # Get NRC (emotion and sentiment word) counts feature
         transformed_data = self._NRC_counts(transformed_data)
+        self.nrc_embeddings = nrc_embedding_file
+        transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=nrc_embedding_file)
 
 
         # Get Universal Sentence embeddings
@@ -443,11 +502,14 @@ class FeatureEngineering:
 
 
         # Normalize count features from data cleaning process
+        transformed_data = data
+        transformed_data['cleaned_text'].fillna('', inplace=True)
         transformed_data = self.normalize_feature(data=data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
 
         # Get NRC values
         transformed_data = self._NRC_counts(transformed_data)
+        transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=self.nrc_embeddings)
 
         # Get Universal Sentence embeddings
         self.get_universal_sent_embeddings(transformed_data)
@@ -467,26 +529,40 @@ class FeatureEngineering:
 if __name__ == '__main__':
 
     # Imports
-    from data_processor import DataProcessor
+    from src.data_processor import DataProcessor
 
 
-    # Load and clean the raw data
-    myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-    myDP.clean_data()
+    # # Load and clean the raw data
+    # myDP = DataProcessor()
+    # myDP.load_data(language='english', filepath='data')  # May need to change to './data' or 'data' if on a Mac
+    # myDP.clean_data()
+    #
+    # # Instantiate the FeatureEngineering object
+    # myFE = FeatureEngineering()
+    #
+    # # Fit
+    # train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
+    #                             embedding_dim=25, nrc_embedding_file='data/glove.twitter.27B.25d.txt')
+    # # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+    # # local machine to run this portion of the system.
+
+    # Load pre-processed data from disk
+    import pandas as pd
+    from src.feature_engineering import FeatureEngineering
+
+    train_df = pd.read_csv('data/processed_data/dp_train_df.csv')
+    val_df = pd.read_csv('data/processed_data/dp_val_df.csv')
 
     # Instantiate the FeatureEngineering object
     myFE = FeatureEngineering()
 
     # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
-                                embedding_dim=25)
-    # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
-    # local machine to run this portion of the system.
+    train_df2 = myFE.fit_transform(train_df, embedding_file_path='data/glove.twitter.27B.25d.txt', embedding_dim=25,
+                                   nrc_embedding_file='data/glove.twitter.27B.25d.txt')
 
     # Transform
-    val_df = myFE.transform(myDP.processed_data['validation'])
+    val_df2 = myFE.transform(val_df)
 
-    # View a sample of the results
-    train_df.head()
-    val_df.head()
+    # # View a sample of the results
+    # train_df.head()
+    # val_df.head()
