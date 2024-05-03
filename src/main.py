@@ -83,6 +83,10 @@ def main(config):
         None
     
     """
+    # TEMPORARY - FOR TIMING, TO BE REMOVED
+    import datetime
+    t0 = datetime.datetime.now()
+
     doc_config = config['document_processing']
     input_tsv_files = doc_config['input_tsv_files']
 
@@ -119,6 +123,10 @@ def main(config):
         val_data_file = f"{doc_config['processed_data_dir']}/val_df.pkl"
         with open(val_data_file, 'wb') as f:
             val_df = pkl.dump(val_df, f)
+
+    # TEMPORARY - FOR TIMING, TO BE REMOVED
+    t1 = datetime.datetime.now()
+    print(f'Time to process data + FE: {t1 - t0}')
 
     # Load the data, if specified
     elif doc_config['save_or_load'] == 'load':

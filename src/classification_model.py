@@ -41,6 +41,7 @@ class ClassificationModel:
         self.model_objectives = []
         self.tasks: Optional[List[str]] = None
         self.target_map = {'hate_speech_detection': 'HS', 'target_or_general': 'TR', 'aggression_detection': 'AG'}
+        self.targets: Optional[List[str]] = None
 
         # Initialize flag to indicate whether model training has occurred
         self.fitted = False
@@ -60,6 +61,56 @@ class ClassificationModel:
 
 
         # TODO: create necessary attributes for other models as they are added
+
+    def _target_processing(self, data):
+        """Processes the target categories into a uniform forman. So rather than having e.g. 3 binary categories for HS,
+        TR and AG (with dependencies) we have a single 5 category problem (HS, HS+TR, HS+AG, HS+TR+AG, None).
+
+        Arguments:
+        ----------
+        data
+            The dataset, with the target task columns.
+
+        Returns:
+        --------
+        Original dataframe with a new column containing the new target category.
+        """
+
+        # Specify which columns contain the target class(es) and order them
+        tasks = [self.target_map[t] for t in self.tasks]
+        task_cols = []
+        if 'HS' in tasks:
+            task_cols.append('HS')
+        if 'TR' in tasks:
+            task_cols.append('TR')
+        if 'AG' in tasks:
+            task_cols.append('AG')
+        self.targets = task_cols
+
+
+
+        # Specify classification objective
+        target_categories = []
+        for index, row in data.iterrows():
+            targets = row[task_cols]
+            # Specify if class is HS or not
+            new_category = ''
+            if targets[0] == 1:
+                new_category = f'{task_cols[0]}+'
+                # If class is HS, is it TR?
+                if targets[1] == 1:
+                    new_category = f'{new_category}{task_cols[1]}+'
+                # If class is HS, is it AG?
+                if targets[2] == 1:
+                    new_category = f'{new_category}{task_cols[1]}'
+                # Remove trailing +, if it exists
+                new_category = new_category.rstrip('+')
+            else:
+                new_category = 'None'
+            target_categories.append(new_category)
+
+            data['Target'] = target_categories
+
 
     def _fit_baseline_model(self, train_data: pd.DataFrame, tasks: List[str]) -> pd.DataFrame:
         """Trains a baseline categorization model, which predicts the target category most frequently seen in the
@@ -138,8 +189,8 @@ class ClassificationModel:
         assert len(features) > 0 or len(embedding_features) > 0, \
             'At least one feature must be provided in order to train a classification model'
 
-        # Specify which columns contain the target class(es)
-        task_cols = [self.target_map[t] for t in tasks]
+        # # Specify which columns contain the target class(es)
+        # task_cols = [self.target_map[t] for t in tasks]
 
         # Limit training data to include only the features and rid of NAs
         x_train = train_data[features]
@@ -156,9 +207,10 @@ class ClassificationModel:
 
 
         # Specify classification objective(s)
-        y_train = train_data[task_cols]
-        if y_train.shape[1] < 2:
-            y_train = y_train.values.flatten()
+        # y_train = train_data[task_cols]
+        # if y_train.shape[1] < 2:
+        #     y_train = y_train.values.flatten()
+        y_train = train_data['Target']
 
         # Initialize Random Forest Classifier
         clf = RandomForestClassifier(n_estimators=self.model_params['n_estimators'],
@@ -181,11 +233,38 @@ class ClassificationModel:
 
         # Get the training data predictions
         y_pred = clf.predict(x_train)
-        y_pred = pd.DataFrame(y_pred, columns=task_cols)
+        #y_pred = pd.DataFrame(y_pred, columns=task_cols)
+        y_pred = pd.DataFrame(y_pred, columns=['Target'])
         pred_df = deepcopy(train_data)
+        # n_cols = len(pred_df.columns)
+        # for t in task_cols:
+        #     pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+        #     n_cols += 1
+        target_preds = {f'{t}_prediction': [] for t in self.targets}
+        for index, row in y_pred.iterrows():
+            if row['Target'] == 'HS+TR+AG':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(1)
+                target_preds['AG_prediction'].append(1)
+            elif row['Target'] == 'HS+TR':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(1)
+                target_preds['AG_prediction'].append(0)
+            elif row['Target'] == 'HS+AG':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(1)
+            elif row['Target'] == 'HS':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(0)
+            else:
+                target_preds['HS_prediction'].append(0)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(0)
         n_cols = len(pred_df.columns)
-        for t in task_cols:
-            pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+        for k in target_preds:
+            pred_df.insert(loc=n_cols, column=k, value=y_pred[k])
             n_cols += 1
 
         return pred_df
@@ -323,6 +402,9 @@ class ClassificationModel:
         # Save task list
         self.tasks = tasks
 
+        # Process target tasks into single categorization task
+        train_data = self._target_processing(train_data)
+
         # Fit and predict baseline model
         if self.model_type == 'baseline':
             if keep_training_data:
@@ -353,7 +435,8 @@ class ClassificationModel:
                 self.train_data = train_data
 
             # Train the model
-            pred_df = self._fit_random_forest_model(train_data, tasks, features, embedding_features)
+            #pred_df = self._fit_random_forest_model(train_data, tasks, features, embedding_features)
+            pred_df = self._fit_random_forest_model(train_data, features, embedding_features)
 
         # Fit and predict SVM Classifier
         elif self.model_type == 'svm':
@@ -363,7 +446,8 @@ class ClassificationModel:
                 'At least one feature must be provided in order to train a Support Vector Machine classification model.'
 
             # train the classifiers
-            pred_df = self._fit_svm_model(train_data, tasks, features, embedding_features)
+            #pred_df = self._fit_svm_model(train_data, tasks, features, embedding_features)
+            pred_df = self._fit_svm_model(train_data, features, embedding_features)
 
         # Flag that model fitting has occurred
         self.fitted = True
