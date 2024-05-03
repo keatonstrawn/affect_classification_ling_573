@@ -123,11 +123,11 @@ def main(config):
                                 features=config['model']['classification']['params']['features'],
                                 embedding_features=config['model']['classification']['params']['embedding_features'])
 
-    train_pred.to_csv("outputs/trained_data.csv")
+    # train_pred.to_csv("outputs/trained_data.csv")
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
-    val_pred.to_csv("outputs/classified_val_data.csv")
+    # val_pred.to_csv("outputs/classified_val_data.csv")
     # create evaluation files based on val_pred
     make_eval_files(val_pred, 
                     input_tsv_files['language'], 
