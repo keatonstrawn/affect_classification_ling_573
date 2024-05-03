@@ -118,7 +118,7 @@ def main(config):
         # Pickle the pre-processed validation data to load in future runs
         val_data_file = f"{doc_config['processed_data_dir']}/val_df.pkl"
         with open(val_data_file, 'wb') as f:
-            val_df = pkl.load(val_df, f)
+            val_df = pkl.dump(val_df, f)
 
     # Load the data, if specified
     elif doc_config['save_or_load'] == 'load':
