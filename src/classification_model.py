@@ -268,7 +268,12 @@ class ClassificationModel:
         y = train_data[task_cols].values
 
         # Train SVM model
-        clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0, probability=True) # highest performance hyperparameter setup after some tuning
+        # clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0, probability=True) # highest performance hyperparameter setup after some tuning
+        clf = SVC(kernel = self.model_params['kernel'],
+                  degree = self.model_params['degree'],
+                  C = self.model_params['C'],
+                  coef0 = self.model_params['coef0'],
+                  probability = self.model_params['probability'])
         multi_target_clf = MultiOutputClassifier(clf)
         multi_target_clf.fit(X_ft, y)
 
@@ -361,6 +366,14 @@ class ClassificationModel:
             # Save the model features
             assert features is not None or embedding_features is not None, \
                 'At least one feature must be provided in order to train a Support Vector Machine classification model.'
+            
+            # Save the default model parameters
+            self.model_params = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
 
             # train the classifiers
             pred_df = self._fit_svm_model(train_data, tasks, features, embedding_features)

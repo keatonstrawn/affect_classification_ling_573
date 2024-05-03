@@ -20,12 +20,17 @@
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
-                  "sadness", "surprise", "trust", "slangscore"] ,
-                "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings", "BERTweet_embeddings"] ,
+                  "sadness", "surprise", "trust"] ,
+                "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings"] ,
                 "model_params": {
-                  "n_estimators": 400, "criterion": "entropy", "max_depth": null, "min_samples_split": 0.1,
-                    "min_samples_leaf": 3, "max_features": "sqrt", "bootstrap": true, "n_jobs": null,
-                    "random_state": 42, "class_weight": "balanced_subsample", "max_samples": 0.2
+                  "random_forest_params": {
+                    "n_estimators": 400, "criterion": "entropy", "max_depth": null, "min_samples_split": 0.1,
+                      "min_samples_leaf": 3, "max_features": "sqrt", "bootstrap": true, "n_jobs": null,
+                      "random_state": 42, "class_weight": "balanced_subsample", "max_samples": 0.2
+                  },
+                  "svm_params":{
+                    "kernel": "poly", "degree": 3, "C": 1.0, "coef0": 0, "probability": true
+                  }
                 }
             }
         }
