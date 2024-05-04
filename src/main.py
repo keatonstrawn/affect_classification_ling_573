@@ -4,12 +4,10 @@ import re
 import pandas as pd
 import pickle as pkl
 
-
 from data_processor import DataProcessor
 from feature_engineering import FeatureEngineering
 from classification_model import ClassificationModel
 from evaluation import Evaluator
-
 
 
 def load_config(config_path):
@@ -27,7 +25,6 @@ def load_config(config_path):
             return json.load(f)
     except FileNotFoundError:
         return None
-
 
 def make_eval_files(df, language, goldpath, predpath):
     """
@@ -58,7 +55,6 @@ def make_eval_files(df, language, goldpath, predpath):
     gold_df.to_csv(goldpath, sep="\t") 
     pred_a_df.to_csv(predpath_a, sep="\t")
 
-
     # TASK B
     # split dataframe into gold and prediction dataframes
     pred_b_df = df[["HS_prediction", "TR_prediction", "AG_prediction"]].copy()
@@ -67,9 +63,6 @@ def make_eval_files(df, language, goldpath, predpath):
     # establish file path, save dataframe as .tsv files
     predpath_b = "".join([predpath, lang, "_b.tsv"])
     pred_b_df.to_csv(predpath_b, sep="\t")
-
-
-
 
 
 def main(config):
@@ -89,7 +82,7 @@ def main(config):
 
     # Save the data once it has been pulled and processed
     if doc_config['save_or_load'] == 'save':
-  
+
         # Initialize the class
         myDP = DataProcessor()
         # Load data from disk
