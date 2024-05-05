@@ -165,5 +165,5 @@ model >> classification >> model_params (when classifier is a random forest) is 
     "max_samples": 0.2}
 
 model >> classification >> model_params (when classifier is an SVM) is a dictionary specifying the following:
-    {"kernel": 'poly', "degree": 3, "C": 1.0, "coef0": 0, "probability": True}
+    {"kernel": "poly", "degree": 3, "C": 1.0, "coef0": 0, "probability": true}
 
