@@ -128,6 +128,8 @@ All arguments for the system are passed through the config file (`config.json`):
       - `"training"`: argument specifying the file path to the training data.
       - `"devtest"`: argument specifying the file path to the development/testing data.
       - `"language"`: argument specifying the language of the data being used.
+   - `"save_or_load"`: argument specifying whether the model will be run with pretrained loaded data or not.
+   - `"processed_data_dir"`: argument specifying the file path to the pretrained data.
 - `"model"`: identifies arguments associated with the core affect classification modules of the system.
    - `"feature_engineering"`: identifies arguments associated with the development of features for the model.
       - `"embedding_path"`: argument specifying the file path where the GloVe embedding data should be stored.
