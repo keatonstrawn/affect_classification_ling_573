@@ -96,7 +96,10 @@ To run the system from Condor:
    ```bash
    cd ./outputs/D3/res
    ```
-
+9.   To see the system's score file, use the following command to navigate to the results directory from the home directory:
+10.   ```bash
+      cd ./results
+      ```
 
 ## Scripts
 - `scripts/run_main.sh`: This is a script that runs the system per the parameters found in `config.json` Usage:
@@ -142,6 +145,7 @@ All arguments for the system are passed through the config file (`config.json`):
             - `"svm_params"`: identifies argument parameters associated with the training of the svm classifier  
 - `"evaluation"`: identifies arguments associated with evaluation of the system's performance.
    - `"output_file"`: argument specifying the name of the file containing the model's performance scores.
+   - `"input_directory"`: argument specifying the input directory for the data used to generate evaluations.
    - `"output_directory"`: argument specifying the output directory for the output files of the evaluation score results.
    - `"goldpath"`: argument specifying the path for where the ground truth data is stored for the evaluator model.
    - `"predpath"`: argument specifying the path for where the model's predicted classification data is stored for the evaluator model. 
