@@ -374,8 +374,11 @@ class ClassificationModel:
             y = train_data[task_cols].values
 
             # Train SVM model
-            clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0,
-                      probability=True)  # highest performance hyperparameter setup after some tuning
+            clf = SVC(kernel=self.model_params['kernel'],
+                      degree=self.model_params['degree'],
+                      C=self.model_params['C'],
+                      coef0=self.model_params['coef0'],
+                      probability=self.model_params['probability'])
             multi_target_clf = MultiOutputClassifier(clf)
             multi_target_clf.fit(X_ft, y)
 
@@ -399,7 +402,11 @@ class ClassificationModel:
             y = train_data['Target'].values
 
             # Train SVM model
-            clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0, probability=True)
+            clf = SVC(kernel=self.model_params['kernel'],
+                      degree=self.model_params['degree'],
+                      C=self.model_params['C'],
+                      coef0=self.model_params['coef0'],
+                      probability=self.model_params['probability'])
             clf.fit(X_ft, y)
 
             # Save the fit model
@@ -515,7 +522,6 @@ class ClassificationModel:
                 self.train_data = train_data
 
             # Train the model
-            #pred_df = self._fit_random_forest_model(train_data, tasks, features, embedding_features)
             pred_df = self._fit_random_forest_model(train_data, features, embedding_features)
 
         # Fit and predict SVM Classifier
@@ -525,8 +531,16 @@ class ClassificationModel:
             assert features is not None or embedding_features is not None, \
                 'At least one feature must be provided in order to train a Support Vector Machine classification model.'
 
+            # Save the default model parameters
+            # highest performance hyperparameter setup (for separaate models) after some tuning
+            self.model_params = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
+
             # train the classifiers
-            #pred_df = self._fit_svm_model(train_data, tasks, features, embedding_features)
             pred_df = self._fit_svm_model(train_data, features, embedding_features)
 
         # Flag that model fitting has occurred
