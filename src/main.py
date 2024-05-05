@@ -130,19 +130,26 @@ def main(config):
     # Instantiate the model
     myClassifier = ClassificationModel(config['model']['classification']['approach'])
     
+    # Choose parameters based on classification approach
+    if config['model']['classification']['approach'] == "random_forest":
+        parameters = parameters=config['model']['classification']['params']['model_params']['random_forest_params']
+    else:
+        parameters=config['model']['classification']['params']['model_params']['svm_params']
 
     # Train the model
     train_pred = myClassifier.fit(train_df,
                                 tasks=config['model']['classification']['params']['tasks'],
                                 prediction_target=config['model']['classification']['params']['prediction_target'],
                                 keep_training_data=config['model']['classification']['params']['keep_training_data'],
-                                parameters=config['model']['classification']['params']['model_params'],
+                                parameters=parameters,
                                 features=config['model']['classification']['params']['features'],
                                 embedding_features=config['model']['classification']['params']['embedding_features'])
 
+    # train_pred.to_csv("outputs/trained_data.csv")
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
+    # val_pred.to_csv("outputs/classified_val_data.csv")
     # create evaluation files based on val_pred
     make_eval_files(val_pred, 
                     input_tsv_files['language'], 
@@ -150,7 +157,7 @@ def main(config):
                     config['evaluation']['predpath'])
 
     # Instantiate the evaluator and run it
-    myEvaluator = Evaluator(config['evaluation']['output_directory'], config['evaluation']['output_directory'],
+    myEvaluator = Evaluator(config['evaluation']['input_directory'], config['evaluation']['output_directory'],
                             config['evaluation']['output_file'])
 
     myEvaluator.main()

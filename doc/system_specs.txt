@@ -73,6 +73,14 @@ GloVe Embeddings --> Creates GloVe style embeddings using the cleaned_text. The 
                     aggregated (using the component-wise mean) to generate a proxy for a 'sentence-level embedding' that
                     is stored in Aggregate_embeddings.
 
+BERTweet Embeddings --> Creates BERT style embeddings using the cleaned_text. The embedding dimension is determined by the
+                        embedding length of the BERTweet representations, typically 768 dimensions. Embeddings are generated for
+                        each tweet, then saved under BERTweet_embeddings.
+
+Universal Sentence Encoder Embeddings --> Creates embeddings generated using Google's Universal Sentence Encoder Embeddings.
+                                        These embeddings have 512 dimensions, they are generated for each tweet, then are saved
+                                        under Universal_Sentence_Encoder_embeddings.
+
 Normalized Features --> A method to normalize the count features that were generated during the data cleaning process
                         was added. This method normalizes those counts to fall within [0,1] and is able to do so in two
                         different ways: min-max normalization or z-score normalization. The default behavior is to use
@@ -109,7 +117,7 @@ classification tasks. If a model is only trained for a subset of the classificat
 predict methods will return dataframes that only contain the columns affiliated with the target classification tasks on
 which the model was trained.
 
-Model type: baseline, random_forest
+Model type: baseline, random_forest, svm
 New columns:
     HS_prediction: boolean (0 or 1)
     TR_prediction: boolean (0 or 1)

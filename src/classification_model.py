@@ -385,6 +385,7 @@ class ClassificationModel:
             # Save the fit model
             self.multi_target_classifier = multi_target_clf
 
+
             # Generate predictions on training data
             y_pred = multi_target_clf.predict(X_ft)
             y_pred = pd.DataFrame(y_pred, columns=task_cols)
@@ -530,6 +531,14 @@ class ClassificationModel:
             # Save the model features
             assert features is not None or embedding_features is not None, \
                 'At least one feature must be provided in order to train a Support Vector Machine classification model.'
+            
+            # Save the default model parameters
+            self.model_params = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
 
             # Save the default model parameters
             # highest performance hyperparameter setup (for separaate models) after some tuning

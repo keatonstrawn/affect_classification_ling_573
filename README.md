@@ -94,9 +94,12 @@ To run the system from Condor:
    ```
 8.   To see the system's prediction files, use the following command to navigate to the evaluation data directory from the home directory:
    ```bash
-   cd ./outputs/D2/res
+   cd ./outputs/D3/res
    ```
-
+9.   To see the system's score file, use the following command to navigate to the results directory from the home directory:
+10.   ```bash
+      cd ./results
+      ```
 
 ## Scripts
 - `scripts/run_main.sh`: This is a script that runs the system per the parameters found in `config.json` Usage:
@@ -137,9 +140,12 @@ All arguments for the system are passed through the config file (`config.json`):
          - `"keep_training_data"`: boolean argument. If the value is set to `true`, the system will save the training data from the model. If the value is set to `false`, the system will not save training data.
          - `"features"`: argument list specifying the header labels in the dataframe that represent the model's non-embedding-based features.
          - `"embedding_features"`: argument list specifying the header labels in the dataframe that represent the model's embedding-based features.
-         - `"model_params"`: identifies argument parameters associated with the training of the random_forest classification model  
+         - `"model_params"`: identifies the parameter sets used for training each classifier model
+            - `"random_forest_params"`: identifies argument parameters associated with the training of the random forest classifier
+            - `"svm_params"`: identifies argument parameters associated with the training of the svm classifier  
 - `"evaluation"`: identifies arguments associated with evaluation of the system's performance.
    - `"output_file"`: argument specifying the name of the file containing the model's performance scores.
+   - `"input_directory"`: argument specifying the input directory for the data used to generate evaluations.
    - `"output_directory"`: argument specifying the output directory for the output files of the evaluation score results.
    - `"goldpath"`: argument specifying the path for where the ground truth data is stored for the evaluator model.
    - `"predpath"`: argument specifying the path for where the model's predicted classification data is stored for the evaluator model. 
