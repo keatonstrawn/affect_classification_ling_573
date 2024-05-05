@@ -140,6 +140,7 @@ All arguments for the system are passed through the config file (`config.json`):
       - `"params"`: identifies argument parameters associated with the given classification approach.
          - `"tasks"`: argument list specifying the tasks for which the model will try to predict data classification.
          - `"keep_training_data"`: boolean argument. If the value is set to `true`, the system will save the training data from the model. If the value is set to `false`, the system will not save training data.
+         - `"prediction_target"`: argument specifying whether the classification is performed on three binary metrics (HS 0/1, TR 0/1, AG 0/1) or a five-way classification (HS+TR+AG, HS+TR, HS+AG, HS, None).
          - `"features"`: argument list specifying the header labels in the dataframe that represent the model's non-embedding-based features.
          - `"embedding_features"`: argument list specifying the header labels in the dataframe that represent the model's embedding-based features.
          - `"model_params"`: identifies the parameter sets used for training each classifier model
