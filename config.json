@@ -37,7 +37,8 @@
   },
   "evaluation": {
         "output_file": "D3_scores.out" ,
-        "output_directory": "outputs/D3",
+        "input_directory": "outputs/D3",
+        "output_directory": "results",
         "goldpath": "outputs/D3/ref/",
         "predpath": "outputs/D3/res/"
   }
