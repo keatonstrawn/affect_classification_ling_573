@@ -134,6 +134,7 @@ def main(config):
     # Train the model
     train_pred = myClassifier.fit(train_df,
                                 tasks=config['model']['classification']['params']['tasks'],
+                                prediction_target=config['model']['classification']['params']['prediction_target'],
                                 keep_training_data=config['model']['classification']['params']['keep_training_data'],
                                 parameters=config['model']['classification']['params']['model_params'],
                                 features=config['model']['classification']['params']['features'],

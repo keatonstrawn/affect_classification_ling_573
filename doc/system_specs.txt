@@ -130,7 +130,12 @@ New columns:
 
 
 Model Evaluator (evaluator.py):
-This module defines the Evaluator class, which takes the output of the classification and runs an analysis to evaluate the model's performance on the affect classification task. For each metric (HS, TR, AG), the evaluator calculates the precision, accuracy, and F1 scores achieved by the model. This class is an adaptation of the Evaluation script provided by the SemEval 2019 Task 5 team to ensure the same evaluation techniques were used by all teams participating in the shared task. It was then modified to be a class within our model. It requires a specific structure for the 'results' directory:
+This module defines the Evaluator class, which takes the output of the classification and runs an analysis to evaluate
+the model's performance on the affect classification task. For each metric (HS, TR, AG), the evaluator calculates the
+precision, accuracy, and F1 scores achieved by the model. This class is an adaptation of the Evaluation script provided
+by the SemEval 2019 Task 5 team to ensure the same evaluation techniques were used by all teams participating in the
+shared task. It was then modified to be a class within our model. It requires a specific structure for the 'results'
+directory:
 - 'results': directory containing all results-related content
     - 'input': directory containing the input information required by the Evaluator class for calculations
         - 'ref': directory containing the gold standard .tsv files for the data
@@ -139,4 +144,26 @@ This module defines the Evaluator class, which takes the output of the classific
 
 
 Model Coordinator (main.py):
-This file coordinates the system by loading the configuration file, and using it to consecutively run the system's modules from Processing to Feature Engineering to Classification to Evaluation. Additionally, this file has functions to format the data and store it in the correct files for the Model Evaluator to perform its analysis on the data.
+This file coordinates the system by loading the configuration file, and using it to consecutively run the system's
+modules from Processing to Feature Engineering to Classification to Evaluation. Additionally, this file has functions to
+format the data and store it in the correct files for the Model Evaluator to perform its analysis on the data.
+
+
+Run Configuration (config.json) exmamples:
+
+model >> classification >> features is a list containing any of the following:
+    ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized", "*_count_normalized",
+    "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust",
+    "slangscore"]
+
+model >> classification >> embedding_features is a list containing any of the following:
+    ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings", "BERTweet_embeddings"]
+
+model >> classification >> model_params (when classifier is a random forest) is a dictionary specifying the following:
+    {"n_estimators": 400, "criterion": "entropy", "max_depth": null, "min_samples_split": 0.1, "min_samples_leaf": 3,
+    "max_features": "sqrt", "bootstrap": true, "n_jobs": null, "random_state": 42, "class_weight": "balanced",
+    "max_samples": 0.2}
+
+model >> classification >> model_params (when classifier is an SVM) is a dictionary specifying the following:
+    {"kernel": 'poly', "degree": 3, "C": 1.0, "coef0": 0, "probability": True}
+

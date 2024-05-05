@@ -42,6 +42,7 @@ class ClassificationModel:
         self.tasks: Optional[List[str]] = None
         self.target_map = {'hate_speech_detection': 'HS', 'target_or_general': 'TR', 'aggression_detection': 'AG'}
         self.targets: Optional[List[str]] = None
+        self.prediction_target = None
 
         # Initialize flag to indicate whether model training has occurred
         self.fitted = False
@@ -184,27 +185,12 @@ class ClassificationModel:
         assert len(features) > 0 or len(embedding_features) > 0, \
             'At least one feature must be provided in order to train a classification model'
 
-        # # Specify which columns contain the target class(es)
-        # task_cols = [self.target_map[t] for t in tasks]
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
 
         # Limit training data to include only the features and rid of NAs
         x_train = train_data[features]
-
-        # # Process embedding(s) features, if they exist
-        # self.embedding_features = embedding_features
-        # if embedding_features is not None:
-        #     embeddings = None
-        #     emb_cols = []
-        #     for ef in embedding_features:
-        #         if embeddings is None:
-        #             embeddings = train_data[ef]
-        #         else:
-        #             embeddings = np.concatenate([embeddings, train_data[ef]], axis=1)
-        #         col_prefix = f'{ef}_dim_'
-        #         new_emb_cols = [col_prefix + str(dim) for dim in range(train_data[ef].shape[1])]
-        #         emb_cols.append(new_emb_cols)
-        #     embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
-        #     x_train = pd.concat([x_train, embeddings], axis=1)
 
         # Process embedding(s) features, if they exist
         self.embedding_features = embedding_features
@@ -217,65 +203,94 @@ class ClassificationModel:
                 x_train = pd.concat([x_train, embeddings], axis=1)
 
         # Specify classification objective(s)
-        # y_train = train_data[task_cols]
-        # if y_train.shape[1] < 2:
-        #     y_train = y_train.values.flatten()
-        y_train = train_data['Target']
+        # If treating classification tasks separately as binary objectives
+        if self.prediction_target == 'separate':
+            y_train = train_data[self.task_cols]
+            if y_train.shape[1] < 2:
+                y_train = y_train.values.flatten()
 
-        # Initialize Random Forest Classifier
-        clf = RandomForestClassifier(n_estimators=self.model_params['n_estimators'],
-                                     criterion=self.model_params['criterion'],
-                                     max_depth=self.model_params['max_depth'],
-                                     min_samples_split=self.model_params['min_samples_split'],
-                                     min_samples_leaf=self.model_params['min_samples_leaf'],
-                                     max_features=self.model_params['max_features'],
-                                     bootstrap=self.model_params['bootstrap'],
-                                     n_jobs=self.model_params['n_jobs'],
-                                     random_state=self.model_params['random_state'],
-                                     class_weight=self.model_params['class_weight'],
-                                     max_samples=self.model_params['max_samples'])
+            # Initialize Random Forest Classifier
+            clf = RandomForestClassifier(n_estimators=self.model_params['n_estimators'],
+                                         criterion=self.model_params['criterion'],
+                                         max_depth=self.model_params['max_depth'],
+                                         min_samples_split=self.model_params['min_samples_split'],
+                                         min_samples_leaf=self.model_params['min_samples_leaf'],
+                                         max_features=self.model_params['max_features'],
+                                         bootstrap=self.model_params['bootstrap'],
+                                         n_jobs=self.model_params['n_jobs'],
+                                         random_state=self.model_params['random_state'],
+                                         class_weight=self.model_params['class_weight'],
+                                         max_samples=self.model_params['max_samples'])
 
-        # Fit to the training data
-        clf.fit(x_train, y_train)
+            # Fit to the training data
+            clf.fit(x_train, y_train)
 
-        # Save the fit model
-        self.random_forest_classifier = clf
+            # Save the fit model
+            self.random_forest_classifier = clf
 
-        # Get the training data predictions
-        y_pred = clf.predict(x_train)
-        #y_pred = pd.DataFrame(y_pred, columns=task_cols)
-        y_pred = pd.DataFrame(y_pred, columns=['Target'])
-        pred_df = deepcopy(train_data)
-        # n_cols = len(pred_df.columns)
-        # for t in task_cols:
-        #     pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
-        #     n_cols += 1
-        target_preds = {f'{t}_prediction': [] for t in self.targets}
-        for index, row in y_pred.iterrows():
-            if row['Target'] == 'HS+TR+AG':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(1)
-                target_preds['AG_prediction'].append(1)
-            elif row['Target'] == 'HS+TR':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(1)
-                target_preds['AG_prediction'].append(0)
-            elif row['Target'] == 'HS+AG':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(0)
-                target_preds['AG_prediction'].append(1)
-            elif row['Target'] == 'HS':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(0)
-                target_preds['AG_prediction'].append(0)
-            else:
-                target_preds['HS_prediction'].append(0)
-                target_preds['TR_prediction'].append(0)
-                target_preds['AG_prediction'].append(0)
-        n_cols = len(pred_df.columns)
-        for k in target_preds.keys():
-            pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
-            n_cols += 1
+            # Get the training data predictions
+            y_pred = clf.predict(x_train)
+            y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
+            pred_df = deepcopy(train_data)
+            n_cols = len(pred_df.columns)
+            for t in task_cols:
+                pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+                n_cols += 1
+
+        # If treating classification tasks as a single, multi-class objective
+        elif self.prediction_target == 'together':
+
+            y_train = train_data['Target']
+
+            # Initialize Random Forest Classifier
+            clf = RandomForestClassifier(n_estimators=self.model_params['n_estimators'],
+                                         criterion=self.model_params['criterion'],
+                                         max_depth=self.model_params['max_depth'],
+                                         min_samples_split=self.model_params['min_samples_split'],
+                                         min_samples_leaf=self.model_params['min_samples_leaf'],
+                                         max_features=self.model_params['max_features'],
+                                         bootstrap=self.model_params['bootstrap'],
+                                         n_jobs=self.model_params['n_jobs'],
+                                         random_state=self.model_params['random_state'],
+                                         class_weight=self.model_params['class_weight'],
+                                         max_samples=self.model_params['max_samples'])
+
+            # Fit to the training data
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.random_forest_classifier = clf
+
+            # Get the training data predictions
+            y_pred = clf.predict(x_train)
+            y_pred = pd.DataFrame(y_pred, columns=['Target'])
+            pred_df = deepcopy(train_data)
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
 
         return pred_df
 
@@ -353,62 +368,79 @@ class ClassificationModel:
 
         self.task_cols = task_cols
 
-        # Combine target columns into one column if multiple tasks are given
-        #y = train_data[task_cols].values
-        y = train_data['Target'].values
+        # If treating classification tasks separately as binary objectives
+        if self.prediction_target == 'separate':
+            # Combine target columns into one column if multiple tasks are given
+            y = train_data[task_cols].values
 
-        # Train SVM model
-        clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0, probability=True) # highest performance hyperparameter setup after some tuning
-        #multi_target_clf = MultiOutputClassifier(clf)
-        #multi_target_clf.fit(X_ft, y)
-        clf.fit(X_ft, y)
+            # Train SVM model
+            clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0,
+                      probability=True)  # highest performance hyperparameter setup after some tuning
+            multi_target_clf = MultiOutputClassifier(clf)
+            multi_target_clf.fit(X_ft, y)
 
-        # Save the fit model
-        #self.multi_target_classifier = multi_target_clf
-        self.multi_target_classifier = clf
+            # Save the fit model
+            self.multi_target_classifier = multi_target_clf
 
-        # Generate predictions on training data
-        #y_pred = multi_target_clf.predict(X_ft)
-        y_pred = clf.predict(X_ft)
-        #
-        y_pred = pd.DataFrame(y_pred, columns=['Target'])
-        pred_df = deepcopy(train_data)
-        target_preds = {f'{t}_prediction': [] for t in self.targets}
-        for index, row in y_pred.iterrows():
-            if row['Target'] == 'HS+TR+AG':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(1)
-                target_preds['AG_prediction'].append(1)
-            elif row['Target'] == 'HS+TR':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(1)
-                target_preds['AG_prediction'].append(0)
-            elif row['Target'] == 'HS+AG':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(0)
-                target_preds['AG_prediction'].append(1)
-            elif row['Target'] == 'HS':
-                target_preds['HS_prediction'].append(1)
-                target_preds['TR_prediction'].append(0)
-                target_preds['AG_prediction'].append(0)
-            else:
-                target_preds['HS_prediction'].append(0)
-                target_preds['TR_prediction'].append(0)
-                target_preds['AG_prediction'].append(0)
-        n_cols = len(pred_df.columns)
-        for k in target_preds.keys():
-            pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
-            n_cols += 1
+            # Generate predictions on training data
+            y_pred = multi_target_clf.predict(X_ft)
+            y_pred = pd.DataFrame(y_pred, columns=task_cols)
 
-        # # Create a DataFrame for predictions
-        # pred_df = deepcopy(train_data)
-        # for i, col in enumerate(task_cols):
-        #     pred_df[f'{col}_prediction'] = y_pred[:, i]
+            # Create a DataFrame for predictions
+            pred_df = deepcopy(train_data)
+            for i, col in enumerate(task_cols):
+                pred_df[f'{col}_prediction'] = y_pred[:, i]
 
-        return pred_df
+            return pred_df
+
+        # If treating classification tasks as a single, multi-class objective
+        elif self.prediction_target == 'together':
+            # Combine target columns into one column if multiple tasks are given
+            y = train_data['Target'].values
+
+            # Train SVM model
+            clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0, probability=True)
+            clf.fit(X_ft, y)
+
+            # Save the fit model
+            self.multi_target_classifier = clf
+
+            # Generate predictions on training data
+            y_pred = clf.predict(X_ft)
+            #
+            y_pred = pd.DataFrame(y_pred, columns=['Target'])
+            pred_df = deepcopy(train_data)
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
+
+            return pred_df
 
 
-    def fit(self, train_data: pd.DataFrame, tasks: List[str], keep_training_data: bool = True,
+    def fit(self, train_data: pd.DataFrame, tasks: List[str], prediction_target: str, keep_training_data: bool = True,
             parameters: Optional[dict] = None, features: Optional[List[str]] = None,
             embedding_features: Optional[List[str]] = None) -> pd.DataFrame:
         """Uses the provided data to train the model to perform the specified classification task.
@@ -422,6 +454,11 @@ class ClassificationModel:
             same model is trained to predict each of those labels simultaneously. To train an individual model for each
             task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
             'hate_speech_detection', 'target_or_general', 'aggression_detection'.
+        prediction_target
+            If "separate" then the tasks are treated as separate classification problems. If "together" then the tasks
+            are all grouped together and treated as a multi-class classification problem. This enables us to cut down on
+            the number of class-combinations that are predicted, as we know that TR and AG values cannot be 1 without
+            HS being 1.
         keep_training_data
             A boolean that indicates whether the training data should be stored on the model.
         parameters
@@ -445,6 +482,7 @@ class ClassificationModel:
         self.tasks = tasks
 
         # Process target tasks into single categorization task
+        self.prediction_target = prediction_target
         train_data = self._target_processing(train_data)
 
         # Fit and predict baseline model
@@ -539,36 +577,45 @@ class ClassificationModel:
                     x_data = pd.concat([x_data, embeddings], axis=1)
 
             # Get the predictions
-            #task_cols = [self.target_map[t] for t in self.tasks]
-            y_pred = self.random_forest_classifier.predict(x_data)
-            y_pred = pd.DataFrame(y_pred, columns=['Target'])
-            pred_df = deepcopy(data)
-            target_preds = {f'{t}_prediction': [] for t in self.targets}
-            for index, row in y_pred.iterrows():
-                if row['Target'] == 'HS+TR+AG':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(1)
-                    target_preds['AG_prediction'].append(1)
-                elif row['Target'] == 'HS+TR':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(1)
-                    target_preds['AG_prediction'].append(0)
-                elif row['Target'] == 'HS+AG':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(0)
-                    target_preds['AG_prediction'].append(1)
-                elif row['Target'] == 'HS':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(0)
-                    target_preds['AG_prediction'].append(0)
-                else:
-                    target_preds['HS_prediction'].append(0)
-                    target_preds['TR_prediction'].append(0)
-                    target_preds['AG_prediction'].append(0)
-            n_cols = len(pred_df.columns)
-            for k in target_preds.keys():
-                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
-                n_cols += 1
+            if self.prediction_target == 'separate':
+                y_pred = self.random_forest_classifier.predict(x_data)
+                y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
+                pred_df = deepcopy(x_data)
+                n_cols = len(pred_df.columns)
+                for t in self.task_cols:
+                    pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+                    n_cols += 1
+
+            elif self.prediction_target == 'together':
+                y_pred = self.random_forest_classifier.predict(x_data)
+                y_pred = pd.DataFrame(y_pred, columns=['Target'])
+                pred_df = deepcopy(data)
+                target_preds = {f'{t}_prediction': [] for t in self.targets}
+                for index, row in y_pred.iterrows():
+                    if row['Target'] == 'HS+TR+AG':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(1)
+                        target_preds['AG_prediction'].append(1)
+                    elif row['Target'] == 'HS+TR':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(1)
+                        target_preds['AG_prediction'].append(0)
+                    elif row['Target'] == 'HS+AG':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(1)
+                    elif row['Target'] == 'HS':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(0)
+                    else:
+                        target_preds['HS_prediction'].append(0)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(0)
+                n_cols = len(pred_df.columns)
+                for k in target_preds.keys():
+                    pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                    n_cols += 1
 
         if self.model_type == 'svm':
             # Identify all feature columns
@@ -606,41 +653,46 @@ class ClassificationModel:
 
 
             # Generate predictions on training data
-            y_pred = self.multi_target_classifier.predict(X_ft)
-            #
-            y_pred = pd.DataFrame(y_pred, columns=['Target'])
-            pred_df = deepcopy(data)
-            target_preds = {f'{t}_prediction': [] for t in self.targets}
-            for index, row in y_pred.iterrows():
-                if row['Target'] == 'HS+TR+AG':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(1)
-                    target_preds['AG_prediction'].append(1)
-                elif row['Target'] == 'HS+TR':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(1)
-                    target_preds['AG_prediction'].append(0)
-                elif row['Target'] == 'HS+AG':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(0)
-                    target_preds['AG_prediction'].append(1)
-                elif row['Target'] == 'HS':
-                    target_preds['HS_prediction'].append(1)
-                    target_preds['TR_prediction'].append(0)
-                    target_preds['AG_prediction'].append(0)
-                else:
-                    target_preds['HS_prediction'].append(0)
-                    target_preds['TR_prediction'].append(0)
-                    target_preds['AG_prediction'].append(0)
-            n_cols = len(pred_df.columns)
-            for k in target_preds.keys():
-                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
-                n_cols += 1
+            if self.prediction_target == 'separate':
+                y_pred = self.multi_target_classifier.predict(X_ft)
+                y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
 
-            # # Create a DataFrame for predictions
-            # pred_df = deepcopy(data)
-            # for i, col in enumerate(self.task_cols):
-            #     pred_df[f'{col}_prediction'] = y_pred[:, i]
+                # Create a DataFrame for predictions
+                pred_df = deepcopy(data)
+                for i, col in enumerate(self.task_cols):
+                    pred_df[f'{col}_prediction'] = y_pred[:, i]
+
+            elif self.prediction_target == 'together':
+                y_pred = self.multi_target_classifier.predict(X_ft)
+                #
+                y_pred = pd.DataFrame(y_pred, columns=['Target'])
+                pred_df = deepcopy(data)
+                target_preds = {f'{t}_prediction': [] for t in self.targets}
+                for index, row in y_pred.iterrows():
+                    if row['Target'] == 'HS+TR+AG':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(1)
+                        target_preds['AG_prediction'].append(1)
+                    elif row['Target'] == 'HS+TR':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(1)
+                        target_preds['AG_prediction'].append(0)
+                    elif row['Target'] == 'HS+AG':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(1)
+                    elif row['Target'] == 'HS':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(0)
+                    else:
+                        target_preds['HS_prediction'].append(0)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(0)
+                n_cols = len(pred_df.columns)
+                for k in target_preds.keys():
+                    pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                    n_cols += 1
 
         return pred_df
 

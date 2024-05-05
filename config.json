@@ -19,6 +19,7 @@
             "approach": "svm" ,
             "params": {
                 "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
+                "prediction_target": "together",
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
