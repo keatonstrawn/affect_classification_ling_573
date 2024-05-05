@@ -5,7 +5,9 @@
             "training": "data/train_en.tsv" ,
             "devtest": "data/dev_en.tsv" ,
             "language": "english"
-        }
+        },
+        "save_or_load": "load",
+        "processed_data_dir": "data/processed_data/"
   },
   "model": {
         "feature_engineering": {
@@ -17,10 +19,11 @@
             "approach": "svm" ,
             "params": {
                 "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
+                "prediction_target": "separate",
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
-                  "sadness", "surprise", "trust"] ,
+                  "sadness", "surprise", "trust", "slangscore"] ,
                 "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings"] ,
                 "model_params": {
                   "random_forest_params": {

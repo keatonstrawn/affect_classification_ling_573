@@ -2,13 +2,12 @@ import json
 import os
 import re
 import pandas as pd
-
+import pickle as pkl
 
 from data_processor import DataProcessor
 from feature_engineering import FeatureEngineering
 from classification_model import ClassificationModel
 from evaluation import Evaluator
-
 
 
 def load_config(config_path):
@@ -26,7 +25,6 @@ def load_config(config_path):
             return json.load(f)
     except FileNotFoundError:
         return None
-
 
 def make_eval_files(df, language, goldpath, predpath):
     """
@@ -57,7 +55,6 @@ def make_eval_files(df, language, goldpath, predpath):
     gold_df.to_csv(goldpath, sep="\t") 
     pred_a_df.to_csv(predpath_a, sep="\t")
 
-
     # TASK B
     # split dataframe into gold and prediction dataframes
     pred_b_df = df[["HS_prediction", "TR_prediction", "AG_prediction"]].copy()
@@ -66,9 +63,6 @@ def make_eval_files(df, language, goldpath, predpath):
     # establish file path, save dataframe as .tsv files
     predpath_b = "".join([predpath, lang, "_b.tsv"])
     pred_b_df.to_csv(predpath_b, sep="\t")
-
-
-
 
 
 def main(config):
@@ -82,29 +76,56 @@ def main(config):
         None
     
     """
+
     doc_config = config['document_processing']
     input_tsv_files = doc_config['input_tsv_files']
-  
-    # Initialize the class
-    myDP = DataProcessor()
-    # Load data from disk
-    myDP.load_data(language=input_tsv_files['language'],
-                   filepath=input_tsv_files['filepath'])
 
-    # Clean the text
-    myDP.clean_data()
-  
-    # Instantiate the FeatureEngineering object
-    myFE = FeatureEngineering()
+    # Save the data once it has been pulled and processed
+    if doc_config['save_or_load'] == 'save':
 
-    # Fit
-    train_df = myFE.fit_transform(myDP.processed_data['train'], 
-                                embedding_file_path=config['model']['feature_engineering']['embedding_path'],
-                                embedding_dim=config['model']['feature_engineering']['embedding_dim'],
-                                slang_dict_path=config['model']['feature_engineering']['slang_dict_path'])
-    
-    # Transform
-    val_df = myFE.transform(myDP.processed_data['validation'])
+        # Initialize the class
+        myDP = DataProcessor()
+        # Load data from disk
+        myDP.load_data(language=input_tsv_files['language'],
+                       filepath=input_tsv_files['filepath'])
+
+        # Clean the text
+        myDP.clean_data()
+
+        # Instantiate the FeatureEngineering object
+        myFE = FeatureEngineering()
+
+        # Fit
+        train_df = myFE.fit_transform(myDP.processed_data['train'],
+                                    embedding_file_path=config['model']['feature_engineering']['embedding_path'],
+                                    embedding_dim=config['model']['feature_engineering']['embedding_dim'],
+                                    slang_dict_path=config['model']['feature_engineering']['slang_dict_path'])
+
+        # Transform
+        val_df = myFE.transform(myDP.processed_data['validation'])
+
+        # Pickle the pre-processed training data to load in future runs
+        train_data_file = f"{doc_config['processed_data_dir']}/train_df.pkl"
+        with open(train_data_file, 'wb') as f:
+            pkl.dump(train_df, f)
+
+        # Pickle the pre-processed validation data to load in future runs
+        val_data_file = f"{doc_config['processed_data_dir']}/val_df.pkl"
+        with open(val_data_file, 'wb') as f:
+            pkl.dump(val_df, f)
+
+    # Load the data, if specified
+    elif doc_config['save_or_load'] == 'load':
+
+        # Unpickle the pre-processed training data
+        train_data_file = f"{doc_config['processed_data_dir']}/train_df.pkl"
+        with open(train_data_file, 'rb') as f:
+            train_df = pkl.load(f)
+
+        # Unpickle the pre-processed validation data
+        val_data_file = f"{doc_config['processed_data_dir']}/val_df.pkl"
+        with open(val_data_file, 'rb') as f:
+            val_df = pkl.load(f)
 
     # Instantiate the model
     myClassifier = ClassificationModel(config['model']['classification']['approach'])
@@ -118,6 +139,7 @@ def main(config):
     # Train the model
     train_pred = myClassifier.fit(train_df,
                                 tasks=config['model']['classification']['params']['tasks'],
+                                prediction_target=config['model']['classification']['params']['prediction_target'],
                                 keep_training_data=config['model']['classification']['params']['keep_training_data'],
                                 parameters=parameters,
                                 features=config['model']['classification']['params']['features'],
@@ -139,9 +161,6 @@ def main(config):
                             config['evaluation']['output_file'])
 
     myEvaluator.main()
-    
-       
-
 
 if __name__ == "__main__":
     # config = load_config(config_path= os.path.join('..', 'config.json'))
