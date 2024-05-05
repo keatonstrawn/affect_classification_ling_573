@@ -280,7 +280,7 @@ class ClassificationModel:
         return pred_df
 
 
-    def _fit_svm_model(self, train_data: pd.DataFrame, tasks: List[str], features: Optional[List[str]],
+    def _fit_svm_model(self, train_data: pd.DataFrame, features: Optional[List[str]],
                         embedding_features: Optional[List[str]]) -> pd.DataFrame:
         """Trains a support vector machine to predict the target category/categories specified in the tasks list.
 
@@ -354,23 +354,56 @@ class ClassificationModel:
         self.task_cols = task_cols
 
         # Combine target columns into one column if multiple tasks are given
-        y = train_data[task_cols].values
+        #y = train_data[task_cols].values
+        y = train_data['Target'].values
 
         # Train SVM model
         clf = SVC(kernel='poly', degree=3, C=1.0, coef0=0, probability=True) # highest performance hyperparameter setup after some tuning
-        multi_target_clf = MultiOutputClassifier(clf)
-        multi_target_clf.fit(X_ft, y)
+        #multi_target_clf = MultiOutputClassifier(clf)
+        #multi_target_clf.fit(X_ft, y)
+        clf.fit(X_ft, y)
 
         # Save the fit model
-        self.multi_target_classifier = multi_target_clf
+        #self.multi_target_classifier = multi_target_clf
+        self.multi_target_classifier = clf
 
         # Generate predictions on training data
-        y_pred = multi_target_clf.predict(X_ft)
-
-        # Create a DataFrame for predictions
+        #y_pred = multi_target_clf.predict(X_ft)
+        y_pred = clf.predict(X_ft)
+        #
+        y_pred = pd.DataFrame(y_pred, columns=['Target'])
         pred_df = deepcopy(train_data)
-        for i, col in enumerate(task_cols):
-            pred_df[f'{col}_prediction'] = y_pred[:, i]
+        target_preds = {f'{t}_prediction': [] for t in self.targets}
+        for index, row in y_pred.iterrows():
+            if row['Target'] == 'HS+TR+AG':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(1)
+                target_preds['AG_prediction'].append(1)
+            elif row['Target'] == 'HS+TR':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(1)
+                target_preds['AG_prediction'].append(0)
+            elif row['Target'] == 'HS+AG':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(1)
+            elif row['Target'] == 'HS':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(0)
+            else:
+                target_preds['HS_prediction'].append(0)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(0)
+        n_cols = len(pred_df.columns)
+        for k in target_preds.keys():
+            pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+            n_cols += 1
+
+        # # Create a DataFrame for predictions
+        # pred_df = deepcopy(train_data)
+        # for i, col in enumerate(task_cols):
+        #     pred_df[f'{col}_prediction'] = y_pred[:, i]
 
         return pred_df
 
@@ -506,17 +539,8 @@ class ClassificationModel:
                     x_data = pd.concat([x_data, embeddings], axis=1)
 
             # Get the predictions
-            task_cols = [self.target_map[t] for t in self.tasks]
+            #task_cols = [self.target_map[t] for t in self.tasks]
             y_pred = self.random_forest_classifier.predict(x_data)
-            # y_pred = pd.DataFrame(y_pred, columns=task_cols)
-            # n_cols = len(pred_df.columns)
-            # for t in task_cols:
-            #     pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
-            #     n_cols += 1
-            #
-            # # Get the training data predictions
-            # y_pred = clf.predict(x_train)
-            # # y_pred = pd.DataFrame(y_pred, columns=task_cols)
             y_pred = pd.DataFrame(y_pred, columns=['Target'])
             pred_df = deepcopy(data)
             target_preds = {f'{t}_prediction': [] for t in self.targets}
@@ -583,11 +607,40 @@ class ClassificationModel:
 
             # Generate predictions on training data
             y_pred = self.multi_target_classifier.predict(X_ft)
-
-            # Create a DataFrame for predictions
+            #
+            y_pred = pd.DataFrame(y_pred, columns=['Target'])
             pred_df = deepcopy(data)
-            for i, col in enumerate(self.task_cols):
-                pred_df[f'{col}_prediction'] = y_pred[:, i]
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
+
+            # # Create a DataFrame for predictions
+            # pred_df = deepcopy(data)
+            # for i, col in enumerate(self.task_cols):
+            #     pred_df[f'{col}_prediction'] = y_pred[:, i]
 
         return pred_df
 
