@@ -603,7 +603,7 @@ class ClassificationModel:
             if self.prediction_target == 'separate':
                 y_pred = self.random_forest_classifier.predict(x_data)
                 y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
-                # pred_df = deepcopy(x_data)
+                pred_df = deepcopy(data)
                 n_cols = len(pred_df.columns)
                 for t in self.task_cols:
                     pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
