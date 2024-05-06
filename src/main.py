@@ -159,8 +159,8 @@ def main(config):
     # Instantiate the evaluator and run it
     myEvaluator = Evaluator(config['evaluation']['input_directory'], config['evaluation']['output_directory'],
                             config['evaluation']['output_file'])
-
     myEvaluator.main()
+
 
 if __name__ == "__main__":
     # config = load_config(config_path= os.path.join('..', 'config.json'))

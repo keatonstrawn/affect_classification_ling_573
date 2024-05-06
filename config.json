@@ -16,10 +16,10 @@
             "slang_dict_path": "data/SlangSD.txt"
         },
         "classification": {
-            "approach": "svm" ,
+            "approach": "random_forest" ,
             "params": {
                 "tasks": ["hate_speech_detection", "target_or_general", "aggression_detection"] ,
-                "prediction_target": "separate",
+                "prediction_target": "together",
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
@@ -27,9 +27,9 @@
                 "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings"] ,
                 "model_params": {
                   "random_forest_params": {
-                    "n_estimators": 400, "criterion": "entropy", "max_depth": null, "min_samples_split": 0.1,
+                    "n_estimators": 500, "criterion": "entropy", "max_depth": null, "min_samples_split": 0.2,
                       "min_samples_leaf": 3, "max_features": "sqrt", "bootstrap": true, "n_jobs": null,
-                      "random_state": 42, "class_weight": "balanced_subsample", "max_samples": 0.2
+                      "random_state": 42, "class_weight": "balanced", "max_samples": 0.5
                   },
                   "svm_params":{
                     "kernel": "poly", "degree": 3, "C": 1.0, "coef0": 0, "probability": true
@@ -41,7 +41,7 @@
   "evaluation": {
         "output_file": "D3_scores.out" ,
         "input_directory": "outputs/D3",
-        "output_directory": "results",
+        "output_directory": "outputs/D3",
         "goldpath": "outputs/D3/ref/",
         "predpath": "outputs/D3/res/"
   }
