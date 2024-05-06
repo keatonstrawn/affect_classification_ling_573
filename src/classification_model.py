@@ -388,7 +388,7 @@ class ClassificationModel:
 
             # Generate predictions on training data
             y_pred = multi_target_clf.predict(X_ft)
-            y_pred = pd.DataFrame(y_pred, columns=task_cols)
+            # y_pred = pd.DataFrame(y_pred, columns=task_cols)
 
             # Create a DataFrame for predictions
             pred_df = deepcopy(train_data)
@@ -678,7 +678,7 @@ class ClassificationModel:
             # Generate predictions on training data
             if self.prediction_target == 'separate':
                 y_pred = self.multi_target_classifier.predict(X_ft)
-                y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
+                # y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
 
                 # Create a DataFrame for predictions
                 pred_df = deepcopy(data)
