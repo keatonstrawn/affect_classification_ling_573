@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import scipy.stats as st
 import tensorflow_hub as hub
+import csv
+import re
 
 from src.nrc_lex_classifier import ExtendedNRCLex
 
@@ -18,9 +20,6 @@ from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreT
 from typing import List, Union, Optional, Dict
 from copy import deepcopy
 
-# for Universal Sentence Encoder -- need to add tensorflow to environment.yml file
-#import tensorflow as tf
-import tensorflow_hub as hub
 
 
 # Define helper function to aggregate embeddings
@@ -79,7 +78,74 @@ class FeatureEngineering:
         self.nrc_embeddings = None
         self.nrc = None
 
+
+    def get_slang_score(self, data: pd.DataFrame, slang_dict_path: str) -> pd.DataFrame:
+        """This method uses data from the SlangSD resource, which labels slang words with their
+        sentiment strength. The sentiment strength scale is from -2 to 2, where -2 is
+        strongly negative, -1 is negative, 0 is neutral, 1 is positive, and 2 is strongly positive.
+        This method sums the sentiment scores across all the slang words in a tweet. The resulting
+        accumulated sentiment scores are added to the original dataframes as sentiment features.
+        Arguments:
+        ---------
+        data
+            The dataframe for which the slang word sentiment score feature is to be generated
+        slang_dict_path
+            File path for the slang dictionary file.
+        Returns:
+        -------
+        The original datasframe with one new column that contain the accumulated sentiment scores of slang words
+        for each tweet in the dataset.
+        """
+
+        # read in the slang dictionary file and construct a slang_dict
+        sd_path = slang_dict_path
+
+        with open(sd_path, 'r') as slang_dict_file:
+            reader = csv.reader(slang_dict_file, delimiter='\t')
+            slang_dict = {}
+            for row in reader:
+                slang_dict[row[0]] = row[1]
+
+        # helper code that lists the occuring slang words in a single tweet for every tweets in the dataset
+        slang_list = []
+        # stores the accumulated sentiment score for a tweet, and stored
+        # as a new column to the original dataframe
+        slang_score_list = []
+
+        # iterate over every tweet to get the counts and score of slang words
+        for index, row in data.iterrows():
+            text = row['cleaned_text']
+            # helper code that generates a list containing all occuring slang
+            # words in a single tweet
+            occurence = []
+            # Calculate the accumulated sentiment score of a tweet
+            slang_score = 0
+
+            # iterate over the slang dict to find matching slangs in a tweet
+            for slang_key in list(slang_dict.keys()):
+                my_regex = r"\b" + re.escape(slang_key) + r"\b"
+                match_slang = re.findall(my_regex, text)
+                if match_slang:
+                    num_of_occur = len(re.findall(my_regex, text))
+                    # add the sentiment score of matched slang word to slang_score
+                    slang_score += num_of_occur * int(slang_dict[slang_key])
+                    occurence.append(match_slang)
+
+            slang_list.append(occurence)
+            # add the slang sentiment score to slang_score_list for a tweet
+            slang_score_list.append(slang_score)
+
+        # add a new column to the original dataframe, representing the slang word sentiment score
+        # for a tweet
+        for index, row in data.iterrows():
+            data.loc[:, "slangscore"] = slang_score_list
+            # helper code to ensure all the slang words of a tweet have been successfully retrieved
+            #data.loc[:, "slanglist"] = slang_list
+
+        return data
+
     def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
+
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
         the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
         positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
@@ -251,7 +317,7 @@ class FeatureEngineering:
 
     def get_bertweet_embeddings(self, df: pd.DataFrame):
         """Function to get BERTweet embeddings from a dataframe and automatically add them to this dataframe.
-        These embeddings are learned from a model, with d_e == ?? (probably should know this)
+        These embeddings are learned from a model, with d_e == 768
 
         Arguments:
         ---------
@@ -422,7 +488,7 @@ class FeatureEngineering:
         return data
 
     def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int,
-                      nrc_embedding_file: str) -> pd.DataFrame:
+                      nrc_embedding_file: str, slang_dict_path: str) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -435,6 +501,8 @@ class FeatureEngineering:
             File path for the Glove embeddings file.
         embedding_dim
             The dimension of the embeddings.
+        slang_dict_path
+            File path for the Slang dictionary file.
 
         Returns:
         -------
@@ -447,12 +515,17 @@ class FeatureEngineering:
         self.train_data = train_data
         self.train_data['cleaned_text'].fillna('', inplace=True)
 
+        # Save the slang dictionary path for use in the model
+        self.slang_dict_path = slang_dict_path
 
         # Normalize count features from data cleaning process
         transformed_data = self.normalize_feature(data=self.train_data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'],
                                                   normalization_method='z_score')
 
+
+        # Get slang words sentiment scores feature
+        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
 
         # Get NRC (emotion and sentiment word) counts feature
         transformed_data = self._NRC_counts(transformed_data)
@@ -464,7 +537,7 @@ class FeatureEngineering:
         self.get_universal_sent_embeddings(transformed_data)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
         self.embedding_file_path = embedding_file_path
@@ -502,10 +575,11 @@ class FeatureEngineering:
 
 
         # Normalize count features from data cleaning process
-        transformed_data = data
-        transformed_data['cleaned_text'].fillna('', inplace=True)
         transformed_data = self.normalize_feature(data=data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
+
+        # Get slang words sentiment scores feature
+        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
 
         # Get NRC values
         transformed_data = self._NRC_counts(transformed_data)
@@ -515,7 +589,7 @@ class FeatureEngineering:
         self.get_universal_sent_embeddings(transformed_data)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
@@ -529,40 +603,26 @@ class FeatureEngineering:
 if __name__ == '__main__':
 
     # Imports
-    from src.data_processor import DataProcessor
+    from data_processor import DataProcessor
 
 
-    # # Load and clean the raw data
-    # myDP = DataProcessor()
-    # myDP.load_data(language='english', filepath='data')  # May need to change to './data' or 'data' if on a Mac
-    # myDP.clean_data()
-    #
-    # # Instantiate the FeatureEngineering object
-    # myFE = FeatureEngineering()
-    #
-    # # Fit
-    # train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
-    #                             embedding_dim=25, nrc_embedding_file='data/glove.twitter.27B.25d.txt')
-    # # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
-    # # local machine to run this portion of the system.
-
-    # Load pre-processed data from disk
-    import pandas as pd
-    from src.feature_engineering import FeatureEngineering
-
-    train_df = pd.read_csv('data/processed_data/dp_train_df.csv')
-    val_df = pd.read_csv('data/processed_data/dp_val_df.csv')
+    # Load and clean the raw data
+    myDP = DataProcessor()
+    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+    myDP.clean_data()
 
     # Instantiate the FeatureEngineering object
     myFE = FeatureEngineering()
 
     # Fit
-    train_df2 = myFE.fit_transform(train_df, embedding_file_path='data/glove.twitter.27B.25d.txt', embedding_dim=25,
-                                   nrc_embedding_file='data/glove.twitter.27B.25d.txt')
+    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
+                                embedding_dim=25)
+    # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+    # local machine to run this portion of the system.
 
     # Transform
-    val_df2 = myFE.transform(val_df)
+    val_df = myFE.transform(myDP.processed_data['validation'])
 
-    # # View a sample of the results
-    # train_df.head()
-    # val_df.head()
+    # View a sample of the results
+    train_df.head()
+    val_df.head()

@@ -1,0 +1,19 @@
+
+taskB_fscore_macro: 0.6405909610487868
+taskB_emr: 0.488
+taskB_fscore_HS: 0.5448171718261244
+taskB_precision_HS: 0.5582861012069643
+taskB_recall_HS: 0.5503104168454782
+taskB_accuracy_HS: 0.578
+taskB_fscore_TR: 0.9337485843714609
+taskB_precision_TR: 0.38883248730964465
+taskB_recall_TR: 0.49039692701664533
+taskB_accuracy_TR: 0.766
+taskB_fscore_AG: 0.44320712694877507
+taskB_precision_AG: 0.898
+taskB_recall_AG: 0.5
+taskB_accuracy_AG: 0.796
+taskA_fscore: 0.5448171718261244
+taskA_precision: 0.5582861012069643
+taskA_recall: 0.5503104168454782
+taskA_accuracy: 0.578
