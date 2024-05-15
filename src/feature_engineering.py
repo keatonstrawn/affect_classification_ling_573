@@ -7,7 +7,7 @@ import torch
 import numpy as np
 import pandas as pd
 import scipy.stats as st
-import tensorflow_hub as hub
+#import tensorflow_hub as hub
 import csv
 import re
 
@@ -282,7 +282,9 @@ class FeatureEngineering:
 
     def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
-        are pretrained embeddings with d_e == 300.
+        are pretrained embeddings with d_e == 300. NOTE: these can work for english and spanish embeddings. If you want
+        to do a certain language you only need to change the embedding_file_path in config.json to be the respective
+        English or Spanish GloVe file
 
         Arguments:
         ---------
@@ -467,17 +469,17 @@ class FeatureEngineering:
 
 
         # Get slang words sentiment scores feature
-        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
+        # transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
 
         # Get NRC (emotion and sentiment word) counts feature
         transformed_data = self._NRC_counts(transformed_data)
 
 
         # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
+        # self.get_universal_sent_embeddings(transformed_data)
 
         # Get BERTweet Sentence embeddings
-        self.get_bertweet_embeddings(transformed_data)
+        # self.get_bertweet_embeddings(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
         self.embedding_file_path = embedding_file_path
@@ -519,16 +521,16 @@ class FeatureEngineering:
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
 
         # Get slang words sentiment scores feature
-        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
+        # transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
 
         # Get NRC values
         transformed_data = self._NRC_counts(transformed_data)
 
         # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
+        # self.get_universal_sent_embeddings(transformed_data)
 
         # Get BERTweet Sentence embeddings
-        self.get_bertweet_embeddings(transformed_data)
+        # self.get_bertweet_embeddings(transformed_data)
 
         # Get Glove embeddings and aggregate across all words
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)

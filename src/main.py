@@ -104,6 +104,9 @@ def main(config):
         # Transform
         val_df = myFE.transform(myDP.processed_data['validation'])
 
+        print(train_df['Aggregate_embeddings'])
+
+        '''
         # Pickle the pre-processed training data to load in future runs
         train_data_file = f"{doc_config['processed_data_dir']}/train_df.pkl"
         with open(train_data_file, 'wb') as f:
@@ -113,6 +116,7 @@ def main(config):
         val_data_file = f"{doc_config['processed_data_dir']}/val_df.pkl"
         with open(val_data_file, 'wb') as f:
             pkl.dump(val_df, f)
+        '''
 
     # Load the data, if specified
     elif doc_config['save_or_load'] == 'load':
@@ -127,6 +131,7 @@ def main(config):
         with open(val_data_file, 'rb') as f:
             val_df = pkl.load(f)
 
+    '''
     # Instantiate the model
     myClassifier = ClassificationModel(config['model']['classification']['approach'])
     
@@ -160,6 +165,7 @@ def main(config):
     myEvaluator = Evaluator(config['evaluation']['input_directory'], config['evaluation']['output_directory'],
                             config['evaluation']['output_file'])
     myEvaluator.main()
+    '''
 
 
 if __name__ == "__main__":
