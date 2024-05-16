@@ -7,7 +7,7 @@ import torch
 import numpy as np
 import pandas as pd
 import scipy.stats as st
-#import tensorflow_hub as hub
+import tensorflow_hub as hub
 import csv
 import re
 
@@ -16,6 +16,7 @@ from nltk.tokenize import word_tokenize
 from gensim.models import KeyedVectors
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
 from typing import List, Union, Optional, Dict
+from sentence_transformers import SentenceTransformer
 
 
 
@@ -310,10 +311,10 @@ class FeatureEngineering:
         # get the embeddings for each row and save to a new column in the dataframe
         df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, embeddings_index, '3'))
 
-    def get_universal_sent_embeddings(self, df: pd.DataFrame):
+    def get_universal_sent_embeddings(self, df: pd.DataFrame, language: str):
         """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
         to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of
-        d_e == 512.
+        d_e == 512. Is also now able to do Spanish sentences through the language argument
 
         Arguments:
         ---------
@@ -326,11 +327,17 @@ class FeatureEngineering:
 
         """
         # load the embeddings from tensorflow hub
-        embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+        if language == 'en':
+            embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+        else:
+            embed = SentenceTransformer('hiiamsid/sentence_similarity_spanish_es')
 
         # function to reformat cleaned text for proper embedding
         def embed_text(text):
-            embeddings= embed([text])
+            if language == 'en':
+                embeddings= embed([text])
+            else:
+                embeddings = embed.encode(text)
             embeddings_flat = np.array(embeddings).flatten()
             return embeddings_flat
 
@@ -476,7 +483,7 @@ class FeatureEngineering:
 
 
         # Get Universal Sentence embeddings
-        # self.get_universal_sent_embeddings(transformed_data)
+        # self.get_universal_sent_embeddings(transformed_data, language='es')
 
         # Get BERTweet Sentence embeddings
         # self.get_bertweet_embeddings(transformed_data)
@@ -527,7 +534,7 @@ class FeatureEngineering:
         transformed_data = self._NRC_counts(transformed_data)
 
         # Get Universal Sentence embeddings
-        # self.get_universal_sent_embeddings(transformed_data)
+        # self.get_universal_sent_embeddings(transformed_data, language='es')
 
         # Get BERTweet Sentence embeddings
         # self.get_bertweet_embeddings(transformed_data)

@@ -104,7 +104,7 @@ def main(config):
         # Transform
         val_df = myFE.transform(myDP.processed_data['validation'])
 
-        print(train_df['Aggregate_embeddings'])
+        print(train_df['cleaned_text'])
 
         '''
         # Pickle the pre-processed training data to load in future runs
