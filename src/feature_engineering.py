@@ -334,7 +334,7 @@ class FeatureEngineering:
         tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
 
         # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+        df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
             '2', tokenizer))
 
     def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
