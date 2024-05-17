@@ -271,10 +271,9 @@ class FeatureEngineering:
         if embedding_type == '1':
             embeddings = [model[word] for word in words if word in model.key_to_index]
         elif embedding_type == '2':
+
             # different form of tokenizing
-
-
-            input_ids = torch.tensor([tokenizer.encode(tweet)])
+            input_ids = torch.tensor([tokenizer.encode(tweet, padding=True, truncation=True)])
             with torch.no_grad():
                 outputs = model(input_ids)
 
@@ -286,8 +285,9 @@ class FeatureEngineering:
             embed = outputs.last_hidden_state[0]
             embed_np = embed.detach().numpy()
             # embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
-            embeddings = [embed_np[i].tolist() for i in range(len(input_ids[0]))]
-            embeddings = np.array(embeddings).flatten()
+            # embeddings = [embed_np[i].tolist() for i in range(len(input_ids[0]))]
+            # embeddings = np.array(embeddings).flatten()
+            embeddings = np.mean(embed_np, axis=0)
         else:
             embeddings = [model[word] for word in words if word in model.keys()]
 
@@ -334,7 +334,8 @@ class FeatureEngineering:
         tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
 
         # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '2', tokenizer))
+        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+            '2', tokenizer))
 
     def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
