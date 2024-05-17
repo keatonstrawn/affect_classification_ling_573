@@ -380,7 +380,9 @@ class FeatureEngineering:
 
         """
         # load the embeddings from tensorflow hub
-        embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+        #embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+        embed = hub.load(
+            "https://www.kaggle.com/models/google/universal-sentence-encoder/TensorFlow2/universal-sentence-encoder/2")
 
         # function to reformat cleaned text for proper embedding
         def embed_text(text):
@@ -611,12 +613,65 @@ if __name__ == '__main__':
     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
     myDP.clean_data()
 
+    #####
+
+    # Save results
+    import pickle as pkl
+    dir_path = '/Users/lindsayskinner/PycharmProjects/affect_classification_ling_573/data/processed_data/D4'
+
+    # Pickle the pre-processed training data to load in future runs
+    train_data_file = f"{dir_path}/dp_train.pkl"
+    train_df = myDP.processed_data['train']
+    with open(train_data_file, 'wb') as f:
+        pkl.dump(train_df, f)
+
+    # Pickle the pre-processed validation data to load in future runs
+    val_data_file = f"{dir_path}/dp_val.pkl"
+    val_df = myDP.processed_data['validation']
+    with open(val_data_file, 'wb') as f:
+        pkl.dump(val_df, f)
+
+    #####
+
+    # Load pre-processed data
+    import pickle as pkl
+
+    # Unpickle the pre-processed training data
+    train_data_file = 'data/processed_data/D4/dp_train.pkl'
+    with open(train_data_file, 'rb') as f:
+        train_df = pkl.load(f)
+
+    # Unpickle the pre-processed validation data
+    val_data_file = 'data/processed_data/D4/dp_val.pkl'
+    with open(val_data_file, 'rb') as f:
+        val_df = pkl.load(f)
+
+    # Instantiate the FeatureEngineering object
+    myFE = FeatureEngineering()
+
+    # Fit
+    train_df = myFE.fit_transform(train_df, embedding_file_path='data/glove.twitter.27B.25d.txt',
+                                embedding_dim=25, nrc_embedding_file='data/glove.twitter.27B.25d.txt',
+                                slang_dict_path='data/SlangSD.txt')
+    # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
+    # local machine to run this portion of the system.
+
+    # Transform
+    val_df = myFE.transform(val_df)
+
+    # View a sample of the results
+    train_df.head()
+    val_df.head()
+
+    #####
+
     # Instantiate the FeatureEngineering object
     myFE = FeatureEngineering()
 
     # Fit
     train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
-                                embedding_dim=25)
+                                embedding_dim=25, nrc_embedding_file='data/glove.twitter.27B.25d.txt',
+                                slang_dict_path='data/SlangSD.txt')
     # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
     # local machine to run this portion of the system.
 
@@ -626,3 +681,19 @@ if __name__ == '__main__':
     # View a sample of the results
     train_df.head()
     val_df.head()
+
+    #####
+
+    # Save results
+    import pickle as pkl
+    dir_path = '/Users/lindsayskinner/PycharmProjects/affect_classification_ling_573/data/processed_data/D4'
+
+    # Pickle the pre-processed training data to load in future runs
+    train_data_file = f"{dir_path}/train_df.pkl"
+    with open(train_data_file, 'wb') as f:
+        pkl.dump(train_df, f)
+
+    # Pickle the pre-processed validation data to load in future runs
+    val_data_file = f"{dir_path}/val_df.pkl"
+    with open(val_data_file, 'wb') as f:
+        pkl.dump(val_df, f)
