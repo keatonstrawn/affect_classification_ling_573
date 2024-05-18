@@ -13,6 +13,7 @@ import csv
 import re
 
 from nrclex import NRCLex
+from googletrans import Translator
 from nltk.tokenize import word_tokenize
 from gensim.models import KeyedVectors
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
@@ -138,6 +139,10 @@ class FeatureEngineering:
 
         return data
 
+    def _translator(self, data: pd.DataFrame) -> pd.DataFrame:
+        translator = Translator()
+        data['cleaned_text'] = data['cleaned_text'].apply(lambda tweet: translator.translate(tweet, dest='en', src='es'))
+        return data
 
     def _Span_NRC_counts(self, span_nrc_path: str, data: pd.DataFrame) -> pd.DataFrame:
         """This method uses a translated set of data from the NRC Word-Emotion Association Lexicon, which labels words with either 
@@ -594,7 +599,7 @@ class FeatureEngineering:
         ---------
         data
             The data set for which the feature set is to be generated.
-            
+
         Returns:
         -------
         transformed_data
