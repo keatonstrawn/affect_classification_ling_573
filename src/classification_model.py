@@ -7,6 +7,7 @@ import numpy as np
 
 
 from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.ensemble import RandomForestClassifier
 from typing import List, Optional, Dict
@@ -33,7 +34,8 @@ class ClassificationModel:
                 Specifies which type of model is used to perform classification. Options include:
                     'baseline'
                     'random_forest'
-                    'model3'
+                    'svm'
+                    'logistic_regression'
         """
 
         # Initialize model parameters
@@ -60,11 +62,14 @@ class ClassificationModel:
         self.features: Optional[List[str]] = None
         self.embedding_features: Optional[List[str]] = None
 
+        # Create attributes for SVM classification model
+        self.multi_target_classifier: Optional[MultiOutputClassifier] = None
 
-        # TODO: create necessary attributes for other models as they are added
+        # Create attributes for logistic regression classification model
+        self.logistic_regression_classifier: Optional[LogisticRegression] = None
 
     def _target_processing(self, data):
-        """Processes the target categories into a uniform forman. So rather than having e.g. 3 binary categories for HS,
+        """Processes the target categories into a uniform format. So rather than having e.g. 3 binary categories for HS,
         TR and AG (with dependencies) we have a single 5 category problem (HS, HS+TR, HS+AG, HS+TR+AG, None).
 
         Arguments:
@@ -105,13 +110,12 @@ class ClassificationModel:
                 # Remove trailing +, if it exists
                 new_category = new_category.rstrip('+')
             else:
-                new_category = 'None'
+                new_category = 'NotHS'
             target_categories.append(new_category)
 
         data['Target'] = target_categories
 
         return data
-
 
     def _fit_baseline_model(self, train_data: pd.DataFrame, tasks: List[str]) -> pd.DataFrame:
         """Trains a baseline categorization model, which predicts the target category most frequently seen in the
@@ -294,9 +298,8 @@ class ClassificationModel:
 
         return pred_df
 
-
     def _fit_svm_model(self, train_data: pd.DataFrame, features: Optional[List[str]],
-                        embedding_features: Optional[List[str]]) -> pd.DataFrame:
+                       embedding_features: Optional[List[str]]) -> pd.DataFrame:
         """Trains a support vector machine to predict the target category/categories specified in the tasks list.
 
         Arguments:
@@ -305,73 +308,45 @@ class ClassificationModel:
             The data set, with the complete set of engineered features, that is used to train the model.
         features
             The set of features to be used in the classification task.
-        tasks
-            The classification task(s) that the model is being trained to predict. If a list of tasks is given then the
-            same model is trained to predict each of those labels simultaneously. To train an individual model for each
-            task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
-            'hate_speech_detection', 'target_or_general', 'aggression_detection'.
         embedding_features
             The set of embedding-type features to be used in the classification task.
 
 
         Returns:
         --------
-        A copy of the original dataframe with new columns appended that contain the random forest classifier predictions
+        A copy of the original dataframe with new columns appended that contain the SVM classifier predictions
         for the specified training task(s).
         """
 
-        
         # At least one of features or embedding_features must be non-empty
         assert len(features) > 0 or len(embedding_features) > 0, \
-            'At least one feature must be provided in order to train a classification model'
+            'At least one feature must be provided in order to train an SVM classification model'
 
-        # Identify all feature columns
-        X_features = train_data[features].values if features else None
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
 
-        # Turn embedding_features into one-dimensional features
-        # This is done because the SVM cannot handle features of different dimensions.
-        if embedding_features:
+        # Limit training data to include only the features and rid of NAs
+        x_train = train_data[features]
 
-            embedding_ft_stats = []
-            for feature in embedding_features:
-                feature_array = train_data[feature].apply(np.array)
-
-                # Calculate features for each embedding
-                feature_means = feature_array.apply(np.mean)
-                # feature_medians = feature_array.apply(np.median)
-                feature_stdevs = feature_array.apply(np.std)
-                # feature_skewness = feature_array.apply(lambda x: pd.Series(x).skew())
-                # feature_kurtosis = feature_array.apply(lambda x: pd.Series(x).kurtosis())
-
-                # Combine stats into a single matrix
-                feature_stats = np.column_stack((feature_means, feature_stdevs))
-                embedding_ft_stats.append(feature_stats)
-
-        X_embedding_features = np.hstack(embedding_ft_stats)
-
+        # Process embedding(s) features, if they exist
+        self.embedding_features = embedding_features
+        if embedding_features is not None:
+            for ef in embedding_features:
+                embeddings = np.stack(train_data[ef])
+                col_prefix = f'{ef}_dim_'
+                emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+                x_train = pd.concat([x_train, embeddings], axis=1)
 
         # Save model features
         self.features = features
         self.embedding_features = embedding_features
 
-        # Concatenate features based on which are present:
-        if X_features is not None and X_embedding_features is not None:
-            X_ft = np.column_stack((X_features, X_embedding_features))                
-        elif X_embedding_features is not None:
-            X_ft = X_embedding_features
-        else:
-            X_ft = X_features
-
-
-        # Specify which columns contain the target class(es)
-        task_cols = [self.target_map[t] for t in self.tasks]
-
-        self.task_cols = task_cols
-
         # If treating classification tasks separately as binary objectives
         if self.prediction_target == 'separate':
             # Combine target columns into one column if multiple tasks are given
-            y = train_data[task_cols].values
+            y_train = train_data[task_cols].values
 
             # Train SVM model
             clf = SVC(kernel=self.model_params['kernel'],
@@ -380,15 +355,13 @@ class ClassificationModel:
                       coef0=self.model_params['coef0'],
                       probability=self.model_params['probability'])
             multi_target_clf = MultiOutputClassifier(clf)
-            multi_target_clf.fit(X_ft, y)
+            multi_target_clf.fit(x_train, y_train)
 
             # Save the fit model
             self.multi_target_classifier = multi_target_clf
 
-
             # Generate predictions on training data
-            y_pred = multi_target_clf.predict(X_ft)
-            # y_pred = pd.DataFrame(y_pred, columns=task_cols)
+            y_pred = multi_target_clf.predict(x_train)
 
             # Create a DataFrame for predictions
             pred_df = deepcopy(train_data)
@@ -400,7 +373,7 @@ class ClassificationModel:
         # If treating classification tasks as a single, multi-class objective
         elif self.prediction_target == 'together':
             # Combine target columns into one column if multiple tasks are given
-            y = train_data['Target'].values
+            y_train = train_data['Target'].values
 
             # Train SVM model
             clf = SVC(kernel=self.model_params['kernel'],
@@ -408,13 +381,13 @@ class ClassificationModel:
                       C=self.model_params['C'],
                       coef0=self.model_params['coef0'],
                       probability=self.model_params['probability'])
-            clf.fit(X_ft, y)
+            clf.fit(x_train, y_train)
 
             # Save the fit model
             self.multi_target_classifier = clf
 
             # Generate predictions on training data
-            y_pred = clf.predict(X_ft)
+            y_pred = clf.predict(x_train)
             #
             y_pred = pd.DataFrame(y_pred, columns=['Target'])
             pred_df = deepcopy(train_data)
@@ -446,6 +419,132 @@ class ClassificationModel:
                 n_cols += 1
 
             return pred_df
+
+    def _fit_logistic_regression_model(self, train_data: pd.DataFrame, features: Optional[List[str]],
+                       embedding_features: Optional[List[str]]) -> pd.DataFrame:
+        """Trains a support vector machine to predict the target category/categories specified in the tasks list.
+
+        Arguments:
+        ----------
+        train_data
+            The data set, with the complete set of engineered features, that is used to train the model.
+        features
+            The set of features to be used in the classification task.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
+
+
+        Returns:
+        --------
+        A copy of the original dataframe with new columns appended that contain the logistic regression predictions
+        for the specified training task(s).
+        """
+
+        # At least one of features or embedding_features must be non-empty
+        assert len(features) > 0 or len(embedding_features) > 0, \
+            'At least one feature must be provided in order to train a classification model'
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
+
+        # Limit training data to include only the features and rid of NAs
+        x_train = train_data[features]
+
+        # Process embedding(s) features, if they exist
+        self.embedding_features = embedding_features
+        if embedding_features is not None:
+            for ef in embedding_features:
+                embeddings = np.stack(train_data[ef])
+                col_prefix = f'{ef}_dim_'
+                emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+                x_train = pd.concat([x_train, embeddings], axis=1)
+
+        # Save model features
+        self.features = features
+        self.embedding_features = embedding_features
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+
+        self.task_cols = task_cols
+
+        # If treating classification tasks separately as binary objectives
+        if self.prediction_target == 'separate':
+            # Combine target columns into one column if multiple tasks are given
+            y_train = train_data[task_cols].values
+
+            # Train logistic regression
+            clf = LogisticRegression(penalty=self.model_params['penalty'],  # 'l2'
+                                     random_state=self.model_params['random_state'],  # 42
+                                     solver=self.model_params['solver'],  # 'sag'
+                                     multi_class='ovr',
+                                     max_iter=self.model_params['max_iter'])  # 1000
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.logistic_regression_classifier = clf
+
+            # Generate predictions on training data
+            y_pred = clf.predict(x_train)
+
+            # Create a DataFrame for predictions
+            pred_df = deepcopy(train_data)
+            for i, col in enumerate(task_cols):
+                pred_df[f'{col}_prediction'] = y_pred[:, i]
+
+            return pred_df
+
+        # If treating classification tasks as a single, multi-class objective
+        elif self.prediction_target == 'together':
+            # Combine target columns into one column if multiple tasks are given
+            y_train = train_data['Target'].values
+
+            # Train logistic regression
+            clf = LogisticRegression(penalty=self.model_params['penalty'],
+                                     random_state=self.model_params['random_state'],
+                                     solver=self.model_params['solver'],
+                                     multi_class='multinomial',
+                                     max_iter=self.model_params['max_iter'])
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.logistic_regression_classifier = clf
+
+            # Generate predictions on training data
+            y_pred = clf.predict(x_train)
+            #
+            y_pred = pd.DataFrame(y_pred, columns=['Target'])
+            pred_df = deepcopy(train_data)
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
+
+        return pred_df
 
 
     def fit(self, train_data: pd.DataFrame, tasks: List[str], prediction_target: str, keep_training_data: bool = True,
@@ -525,20 +624,12 @@ class ClassificationModel:
             # Train the model
             pred_df = self._fit_random_forest_model(train_data, features, embedding_features)
 
-        # Fit and predict SVM Classifier
+        # Fit and predict SVM classifier
         elif self.model_type == 'svm':
 
             # Save the model features
             assert features is not None or embedding_features is not None, \
                 'At least one feature must be provided in order to train a Support Vector Machine classification model.'
-            
-            # Save the default model parameters
-            self.model_params = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
-
-            # Replace specified defaults and save the provided model parameters
-            if parameters is not None:
-                for p in parameters.keys():
-                    self.model_params[p] = parameters[p]
 
             # Save the default model parameters
             # highest performance hyperparameter setup (for separaate models) after some tuning
@@ -551,6 +642,25 @@ class ClassificationModel:
 
             # train the classifiers
             pred_df = self._fit_svm_model(train_data, features, embedding_features)
+
+        # Fit and predict logistic regression classifier
+        elif self.model_type == 'logistic_regression':
+
+            # Ensure we have model features
+            assert features is not None or embedding_features is not None, \
+                'At least one feature must be provided in order to train a Logistic Regression classification model.'
+
+            # Save the default model parameters
+            # TODO: NEED TO DO SOME HYPERPARAMETER TUNING FOR THIS MODEL
+            self.model_params = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag', 'max_iter': 1000}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
+
+            # train the classifiers
+            pred_df = self._fit_logistic_regression_model(train_data, features, embedding_features)
 
         # Flag that model fitting has occurred
         self.fitted = True
@@ -585,7 +695,8 @@ class ClassificationModel:
                 pred = self.most_frequent_category[k]
                 pred_df.insert(loc=n_cols, column=f'{k}_prediction', value=pred)
 
-        if self.model_type == 'random_forest':
+        # Predictions for individual classifiers
+        if self.model_type == 'random_forest' or self.model_type == 'svm' or self.model_type == 'logistic_regression':
 
             # Add appropriate engineered features
             x_data = data[self.features]
@@ -601,7 +712,12 @@ class ClassificationModel:
 
             # Get the predictions
             if self.prediction_target == 'separate':
-                y_pred = self.random_forest_classifier.predict(x_data)
+                if self.model_type == 'random_forest':
+                    y_pred = self.random_forest_classifier.predict(x_data)
+                elif self.model_type == 'svm':
+                    y_pred = self.multi_target_classifier.predict(x_data)
+                else:
+                    y_pred = self.logistic_regression_classifier.predict(x_data)
                 y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
                 pred_df = deepcopy(data)
                 n_cols = len(pred_df.columns)
@@ -610,84 +726,12 @@ class ClassificationModel:
                     n_cols += 1
 
             elif self.prediction_target == 'together':
-                y_pred = self.random_forest_classifier.predict(x_data)
-                y_pred = pd.DataFrame(y_pred, columns=['Target'])
-                pred_df = deepcopy(data)
-                target_preds = {f'{t}_prediction': [] for t in self.targets}
-                for index, row in y_pred.iterrows():
-                    if row['Target'] == 'HS+TR+AG':
-                        target_preds['HS_prediction'].append(1)
-                        target_preds['TR_prediction'].append(1)
-                        target_preds['AG_prediction'].append(1)
-                    elif row['Target'] == 'HS+TR':
-                        target_preds['HS_prediction'].append(1)
-                        target_preds['TR_prediction'].append(1)
-                        target_preds['AG_prediction'].append(0)
-                    elif row['Target'] == 'HS+AG':
-                        target_preds['HS_prediction'].append(1)
-                        target_preds['TR_prediction'].append(0)
-                        target_preds['AG_prediction'].append(1)
-                    elif row['Target'] == 'HS':
-                        target_preds['HS_prediction'].append(1)
-                        target_preds['TR_prediction'].append(0)
-                        target_preds['AG_prediction'].append(0)
-                    else:
-                        target_preds['HS_prediction'].append(0)
-                        target_preds['TR_prediction'].append(0)
-                        target_preds['AG_prediction'].append(0)
-                n_cols = len(pred_df.columns)
-                for k in target_preds.keys():
-                    pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
-                    n_cols += 1
-
-        if self.model_type == 'svm':
-            # Identify all feature columns
-            X_features = data[self.features].values if self.features else None
-
-            # Turn embedding_features into one-dimensional features
-            # This is done because the SVM cannot handle features of different dimensions.
-            if self.embedding_features:
-
-                embedding_ft_stats = []
-                for feature in self.embedding_features:
-                    feature_array = data[feature].apply(np.array)
-
-                    # Calculate features for each embedding
-                    feature_means = feature_array.apply(np.mean)
-                    # feature_medians = feature_array.apply(np.median)
-                    feature_stdevs = feature_array.apply(np.std)
-                    # feature_skewness = feature_array.apply(lambda x: pd.Series(x).skew())
-                    # feature_kurtosis = feature_array.apply(lambda x: pd.Series(x).kurtosis())
-
-                    # Combine stats into a single matrix
-                    feature_stats = np.column_stack((feature_means, feature_stdevs))
-                    embedding_ft_stats.append(feature_stats)
-
-
-            X_embedding_features = np.hstack(embedding_ft_stats)
-
-            # Concatenate features based on which are present:
-            if X_features is not None and X_embedding_features is not None:
-                X_ft = np.column_stack((X_features, X_embedding_features))                
-            elif X_embedding_features is not None:
-                X_ft = X_embedding_features
-            else:
-                X_ft = X_features
-
-
-            # Generate predictions on training data
-            if self.prediction_target == 'separate':
-                y_pred = self.multi_target_classifier.predict(X_ft)
-                # y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
-
-                # Create a DataFrame for predictions
-                pred_df = deepcopy(data)
-                for i, col in enumerate(self.task_cols):
-                    pred_df[f'{col}_prediction'] = y_pred[:, i]
-
-            elif self.prediction_target == 'together':
-                y_pred = self.multi_target_classifier.predict(X_ft)
-                #
+                if self.model_type == 'random_forest':
+                    y_pred = self.random_forest_classifier.predict(x_data)
+                elif self.model_type == 'svm':
+                    y_pred = self.multi_target_classifier.predict(x_data)
+                else:
+                    y_pred = self.logistic_regression_classifier.predict(x_data)
                 y_pred = pd.DataFrame(y_pred, columns=['Target'])
                 pred_df = deepcopy(data)
                 target_preds = {f'{t}_prediction': [] for t in self.targets}
