@@ -3,604 +3,1163 @@ model can use to classify the tweets within the dataset.
 """
 
 # Libraries
-import torch
-import numpy as np
 import pandas as pd
-import scipy.stats as st
-import tensorflow_hub as hub
-import csv
-import re
+import numpy as np
 
-from src.nrc_lex_classifier import ExtendedNRCLex
-
-from nrclex import NRCLex
-from nltk.tokenize import word_tokenize
-from gensim.models import KeyedVectors
-from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
-from typing import List, Union, Optional, Dict
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from typing import List, Optional, Dict
 from copy import deepcopy
 
+# Define class to house classification models
+class ClassificationModel:
 
-
-# Define helper function to aggregate embeddings
-def get_embedding_ave(embedding_list: List[np.array], embedding_dim: int) -> np.array:
-    """Function to average a list of word embeddings in order to generate a single sentence embedding.
-
-    Arguments:
-    ----------
-    embedding_list
-        The list of word embeddings to be averaged.
-    embedding_dim
-        The dimension of the embeddings.
-
-    Returns:
-    --------
-        A single, aggregated embedding that is averaged over the provided list. Returns a 0 embedding when the list is
-        empty.
-    """
-    if len(embedding_list) > 0:
-        agg_embedding = sum(embedding_list) / len(embedding_list)
-    else:
-        agg_embedding = np.zeros(embedding_dim)
-
-    return agg_embedding
-
-
-# Define class to perform feature engineering
-class FeatureEngineering:
-
-    def __init__(self):
+    def __init__(self, model_type: str):
         """Generates features from processed data to be used in hate speech detection tasks A and B, as specified in
         SemEval 2019 task 5.
 
-        Includes methods to generate the following features:
-            * _NRC_counts --> binary classification of words across ten emotional dimensions. Raw counts are then
-                                    transformed into proportions to normalize across tweets.
-            * example feature2 --> fill this in with actual feature
-            * example feature3 --> fill this in with actual feature
-        """
-        
-        # Initialize the cleaned datasets
-        self.train_data: Optional[pd.DataFrame] = None
+        Includes methods to train the following classification models:
+            * baseline model: Guesses the target class most commonly seen in the training data.
+            * random forest: Aggregates probabilistic estimates from decision trees fit on subsets of the dataset to
+                predict the target class. (Note: The probability aggregation is not the same as the approach that allows
+                each tree to 'vote' for a single class.)
+            * example model3 --> fill this in with model info
 
-        # Set fit flag
+            Parameters
+            ----------
+            model_type
+                Specifies which type of model is used to perform classification. Options include:
+                    'baseline'
+                    'random_forest'
+                    'svm'
+                    'logistic_regression'
+                    'ensemble_lr'
+                    'ensemble_dt'
+        """
+
+        # Initialize model parameters
+        self.model_type = model_type
+        self.model_objectives = []
+        self.tasks: Optional[List[str]] = None
+        self.target_map = {'hate_speech_detection': 'HS', 'target_or_general': 'TR', 'aggression_detection': 'AG'}
+        self.targets: Optional[List[str]] = None
+        self.prediction_target = None
+
+        # Initialize flag to indicate whether model training has occurred
         self.fitted = False
 
+        # Create attribute to optionally store training data and predictions
+        self.train_data: Optional[pd.DataFrame] = None
+        self.train_est: Optional[pd.DataFrame] = None
+        self.model_params: Optional[dict] = None
 
-        # Save normalization info
-        self.normalization_dict = {}
+        # Create attributes for baseline model
+        self.most_frequent_category: Optional[Dict[str, int]] = None
 
-        # Save embedding info
-        self.embedding_file_path = None
-        self.embedding_dim = None
+        # Create attributes for random forest classification model
+        self.random_forest_classifier: Optional[RandomForestClassifier] = None
+        self.features: Optional[List[str]] = None
+        self.embedding_features: Optional[List[str]] = None
 
-        # Save extended-NRC info
-        self.nrc_embeddings = None
-        self.nrc = None
+        # Create attributes for SVM classification model
+        self.multi_target_classifier: Optional[MultiOutputClassifier] = None
 
+        # Create attributes for logistic regression classification model
+        self.logistic_regression_classifier: Optional[LogisticRegression] = None
 
-    def get_slang_score(self, data: pd.DataFrame, slang_dict_path: str) -> pd.DataFrame:
-        """This method uses data from the SlangSD resource, which labels slang words with their
-        sentiment strength. The sentiment strength scale is from -2 to 2, where -2 is
-        strongly negative, -1 is negative, 0 is neutral, 1 is positive, and 2 is strongly positive.
-        This method sums the sentiment scores across all the slang words in a tweet. The resulting
-        accumulated sentiment scores are added to the original dataframes as sentiment features.
-        Arguments:
-        ---------
-        data
-            The dataframe for which the slang word sentiment score feature is to be generated
-        slang_dict_path
-            File path for the slang dictionary file.
-        Returns:
-        -------
-        The original datasframe with one new column that contain the accumulated sentiment scores of slang words
-        for each tweet in the dataset.
-        """
+        # Create attributes for ensembling models
+        self.ensembler_models: Optional[Dict[str: any]] = {}
+        self.submodel_results: Optional[pd.DataFrame] = None
+        self.submodel_results_test: Optional[pd.DataFrame] = None
 
-        # read in the slang dictionary file and construct a slang_dict
-        sd_path = slang_dict_path
+        # TODO: create necessary attributes for other models as they are added
 
-        with open(sd_path, 'r') as slang_dict_file:
-            reader = csv.reader(slang_dict_file, delimiter='\t')
-            slang_dict = {}
-            for row in reader:
-                slang_dict[row[0]] = row[1]
-
-        # helper code that lists the occuring slang words in a single tweet for every tweets in the dataset
-        slang_list = []
-        # stores the accumulated sentiment score for a tweet, and stored
-        # as a new column to the original dataframe
-        slang_score_list = []
-
-        # iterate over every tweet to get the counts and score of slang words
-        for index, row in data.iterrows():
-            text = row['cleaned_text']
-            # helper code that generates a list containing all occuring slang
-            # words in a single tweet
-            occurence = []
-            # Calculate the accumulated sentiment score of a tweet
-            slang_score = 0
-
-            # iterate over the slang dict to find matching slangs in a tweet
-            for slang_key in list(slang_dict.keys()):
-                my_regex = r"\b" + re.escape(slang_key) + r"\b"
-                match_slang = re.findall(my_regex, text)
-                if match_slang:
-                    num_of_occur = len(re.findall(my_regex, text))
-                    # add the sentiment score of matched slang word to slang_score
-                    slang_score += num_of_occur * int(slang_dict[slang_key])
-                    occurence.append(match_slang)
-
-            slang_list.append(occurence)
-            # add the slang sentiment score to slang_score_list for a tweet
-            slang_score_list.append(slang_score)
-
-        # add a new column to the original dataframe, representing the slang word sentiment score
-        # for a tweet
-        for index, row in data.iterrows():
-            data.loc[:, "slangscore"] = slang_score_list
-            # helper code to ensure all the slang words of a tweet have been successfully retrieved
-            #data.loc[:, "slanglist"] = slang_list
-
-        return data
-
-    def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
-
-        """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
-        the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
-        positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
-        in a tweet, then divides by the total number of counts to obtain a proportion. These proportions are added on to the end 
-        of the dataframe as count-based features.
-
-
-        Arguments:
-        ---------
-        data
-            The data for which the feature is to be generated
-
-        Returns:
-        -------
-        The original dataset with ten new columns that contain the new emotion features generated for each tweet in the
-        dataset.
-        """
-        # add ten columns to the end of the dataframe, representing the eight emotional dimensions of NRC
-        emotions = ['negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
-        for emotion in emotions:
-            data[emotion] = 0.0
-        
-        # iterate over each tweet to get counts of each emotion classification
-        for index, row in data.iterrows():
-            if row['cleaned_text'] != '':
-                text = word_tokenize(row['cleaned_text'])
-
-                # iterate over each word in the tweet, add counts to emotion vector
-                for word in text:
-                    emotion = NRCLex(word)
-                    if emotion is not None:
-                        emolist = emotion.affect_list
-                        for emo in emolist:
-                            data.at[index, emo] += 1
-
-        # divide by total count of emo markers to get proportions not frequency counts
-        # Replace 0 values with NaN to prevent error with dividing by zero
-        rowsums = data.iloc[:, -10:].sum(axis=1)
-        rowsums[rowsums == 0] = 1.0
-        data.iloc[:, -10:] = data.iloc[:, -10:].div(rowsums, axis=0)
-
-        # ***Uncomment the line below to create file showing the data visualized***
-        # data.to_csv('test.txt', sep=',', header=True)
-
-        return data
-
-    def _extended_NRC_counts(self, data: pd.DataFrame, embedding_file: str):
-        """This method uses GloVe embeddings and data from the NRC Word-Emotion Association Lexicon, which labels words
-        with either a 1 or 0 based on the presence or absence of each of the following emotional dimensions: anger,
-        anticipation, disgust, fear, joy, negative, positive, sadness, surprise, trust. A classification model is
-        trained on GloVe embeddings to predict the affiliated NRC emotion and valence values. This extends the basic
-        NRC counts to provide counts for any word/sub-word for which one can generate a GloVe embedding. The
-        probabilities predicted for each category are summed across each of the ten dimensions, across all the words in
-        a tweet, then divides by the total number of words. These proportions are added on to the end of the dataframe.
-
-
-        Arguments:
-        ---------
-        data
-            The data for which the feature is to be generated
-        embeddings_file
-            Points to the file containing the GloVe embeddings.
-
-        Returns:
-        -------
-        The original dataset with ten new columns that contain the new emotion features generated for each tweet in the
-        dataset.
-        """
-
-        # Initialize and train the NRC classifier
-        if not self.fitted:
-            NewNRCLex = ExtendedNRCLex()
-            NewNRCLex.fit(embedding_file)
-            self.nrc = NewNRCLex
-        else:
-            NewNRCLex = self.nrc
-        emo_classes = NewNRCLex.classes
-        emo_classes = emo_classes + '_ext'
-
-        # iterate over each tweet to get counts of each emotion classification
-        for emo in emo_classes:
-            data[emo] = 0.0
-        for index, row in data.iterrows():
-            if row['cleaned_text'] != '':
-                text = row['cleaned_text']
-                if len(text) > 0:
-                    res = NewNRCLex.transform(text, res_type='prob')
-                    for i in range(len(res)):
-                        emo = emo_classes[i]
-                        data.at[index, emo] = res[i]
-
-        return data
-
-
-
-    def embeddings_helper(self, tweet: str, model: Union[Dict, KeyedVectors, PreTrainedModel], embedding_type: str,
-                          tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
-        """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
-        from model/dictionary.
-
-        Arguments:
-        ---------
-        tweet
-            The line of the data to generate embeddings for
-        model
-            The dictionary of FastText embeddings, as either a Dict or an instance of KeyedVectors from gensim
-        embedding_type
-            '1' == FastText
-            '2' == BERTweet
-            '3' (or anything else) == GloVe
-        tokenizer
-            Optional Tokenizer for BERTweet embeddings
-
-        Returns:
-        -------
-        A list of the word embeddings for each word in the input tweet.
-
-        """
-        # tokenize
-        words = tweet.split()
-
-        # retrieve embeddings if in the vocabulary/model
-        if embedding_type == '1':
-            embeddings = [model[word] for word in words if word in model.key_to_index]
-        elif embedding_type == '2':
-
-            # different form of tokenizing
-            input_ids = torch.tensor([tokenizer.encode(tweet, padding=True, truncation=True)])
-            with torch.no_grad():
-                outputs = model(input_ids)
-
-            # tokens = tokenizer.tokenize(tweet)
-            # input_ids = tokenizer.convert_tokens_to_ids(tokens)
-            # with torch.no_grad():
-            #     outputs = model(torch.tensor([input_ids], dtype=torch.long))
-
-            embed = outputs.last_hidden_state[0]
-            embed_np = embed.detach().numpy()
-            # embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
-            # embeddings = [embed_np[i].tolist() for i in range(len(input_ids[0]))]
-            # embeddings = np.array(embeddings).flatten()
-            embeddings = np.mean(embed_np, axis=0)
-        else:
-            embeddings = [model[word] for word in words if word in model.keys()]
-
-        return embeddings
-
-    def get_fasttext_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
-        """Function to get FastText embeddings from a dataframe and automatically add them to this dataframe. These
-        are pretrained embeddings with d_e == 300
-
-        Arguments:
-        ---------
-        df
-            Pandas dataframe containing the preprocessed data
-        embedding_file_path
-            File path for the embeddings file
-
-        Returns:
-        -------
-        Nothing
-
-        """
-        # get the model from a preloaded corpus
-        model = KeyedVectors.load_word2vec_format(embedding_file_path)
-
-        # get the embeddings for each row and save to a new column in the dataframe
-        df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '1'))
-
-    def get_bertweet_embeddings(self, df: pd.DataFrame):
-        """Function to get BERTweet embeddings from a dataframe and automatically add them to this dataframe.
-        These embeddings are learned from a model, with d_e == 768
-
-        Arguments:
-        ---------
-        df
-            Pandas dataframe containing the preprocessed data
-
-        Returns:
-        -------
-        Nothing
-
-        """
-        # load tokenizer and model
-        model = AutoModel.from_pretrained("vinai/bertweet-base")
-        tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
-
-        # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
-            '2', tokenizer))
-
-    def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
-        """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
-        are pretrained embeddings with d_e == 300.
-
-        Arguments:
-        ---------
-        df
-            Pandas dataframe containing the preprocessed data
-        embedding_file_path
-            File path for the embeddings file
-
-        Returns:
-        -------
-        Nothing
-
-        """
-        # load embeddings and make a dict
-        embeddings_index = {}
-        with open(embedding_file_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                values = line.split()
-                word = values[0]
-                coefs = np.asarray(values[1:], dtype='float32')
-                embeddings_index[word] = coefs
-
-        # get the embeddings for each row and save to a new column in the dataframe
-        df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, embeddings_index, '3'))
-
-    def get_universal_sent_embeddings(self, df: pd.DataFrame):
-        """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
-        to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of
-        d_e == 512.
-
-        Arguments:
-        ---------
-        df
-            Pandas dataframe containing the preprocessed data
-
-        Returns:
-        -------
-        Nothing
-
-        """
-        # load the embeddings from tensorflow hub
-        #embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
-        embed = hub.load(
-            "https://www.kaggle.com/models/google/universal-sentence-encoder/TensorFlow2/universal-sentence-encoder/2")
-
-        # function to reformat cleaned text for proper embedding
-        def embed_text(text):
-            embeddings= embed([text])
-            embeddings_flat = np.array(embeddings).flatten()
-            return embeddings_flat
-
-        
-        # get the embeddings for each row and save to a new column in the dataframe
-        df['Universal_Sentence_Encoder_embeddings'] = df['cleaned_text'].apply(embed_text)
-
-    def normalize_feature(self, data: pd.DataFrame, feature_columns: List[str],
-                          normalization_method: Optional[str] = None) -> pd.DataFrame:
-        """Normalizes the features in the specified columns by transforming the data to fall within [0,1].
-
-        This can be done using a number of different approaches. The specific approach and relevant parameters needed to
-        perform normalization in downstream transformations are saved in the normalization_dict, which is keyed by the
-        feature column name.
+    def _target_processing(self, data):
+        """Processes the target categories into a uniform format. So rather than having e.g. 3 binary categories for HS,
+        TR and AG (with dependencies) we have a single 5 category problem (HS, HS+TR, HS+AG, HS+TR+AG, None).
 
         Arguments:
         ----------
         data
-            The data for which the feature is to be generated
-        feature_columns
-            The column name(s) of the feature(s) to be normalized. If multiple column names are provided then the values
-            in both columns are simultaneously normalized.
-        normalization_method
-            Required when fitting. Specifies which calculation to use to normalize the features. Options include...
-            min_max:
-                Applies (x-min)/(max-min) transformation, capping the resulting values to fall within [0,1].
-            z_score:
-                Applies Norm.CDF((x-mu)/sigma) transformation. Values correspond to percentages from a normal
-                distribution.
-                #TODO: extend this method to use a more appropriate distribution than normal for certain features
+            The dataset, with the target task columns.
 
         Returns:
-        -------
-        transformed_data
-            The original train_data dataframe with new columns that include the normalized features for each observation
-            in the dataset.
+        --------
+        Original dataframe with a new column containing the new target category.
         """
 
-        # Initialize dictionary to hold normalized results
-        normalized_feats = {}
+        # Specify which columns contain the target class(es) and order them
+        tasks = [self.target_map[t] for t in self.tasks]
+        task_cols = []
+        if 'HS' in tasks:
+            task_cols.append('HS')
+        if 'TR' in tasks:
+            task_cols.append('TR')
+        if 'AG' in tasks:
+            task_cols.append('AG')
+        self.targets = task_cols
 
-        # Perform normalization transformations, assuming fitting has already occurred
-        if self.fitted:
-            for feat in feature_columns:
+        # Specify classification objective
+        target_categories = []
+        for index, row in data.iterrows():
+            targets = row[task_cols]
+            # Specify if class is HS or not
+            new_category = ''
+            if targets.iloc[0] == 1:
+                new_category = f'{task_cols[0]}+'
+                # If class is HS, is it TR?
+                if targets.iloc[1] == 1:
+                    new_category = f'{new_category}{task_cols[1]}+'
+                # If class is HS, is it AG?
+                if targets.iloc[2] == 1:
+                    new_category = f'{new_category}{task_cols[2]}'
+                # Remove trailing +, if it exists
+                new_category = new_category.rstrip('+')
+            else:
+                new_category = 'NotHS'
+            target_categories.append(new_category)
 
-                # If trained normalization method uses min-max approach
-                if self.normalization_dict[feat]['method'] == 'min_max':
-                    f_min = self.normalization_dict[feat]['params']['min']
-                    f_max = self.normalization_dict[feat]['params']['max']
-                    feat_vals = data[feat]
-                    norm_vals = (feat_vals - f_min) / (f_max - f_min)
-                    # Cap any extreme values that fall outside the range seen in the training data
-                    norm_vals[norm_vals > 1.0] = 1.0
-                    norm_vals[norm_vals < 0.0] = 0.0
-
-                # If trained normalization method uses z-score approach
-                if self.normalization_dict[feat]['method'] == 'z_score':
-                    sigma = self.normalization_dict[feat]['params']['sigma']
-                    mu = self.normalization_dict[feat]['params']['mu']
-                    feat_vals = data[feat]
-                    z_scores = (feat_vals - mu) / sigma
-                    norm_vals = st.norm.cdf(z_scores)
-
-                # Store results to be returned
-                normalized_feats[feat] = norm_vals
-
-        # Learn and apply normalization transformations
-        else:
-            for feat in feature_columns:
-                self.normalization_dict[feat] = {}
-                feat_vals = data[feat]
-
-                # If specified normalization method is min-max approach
-                if normalization_method == 'min_max':
-                    f_min = feat_vals.min()
-                    f_max = feat_vals.max()
-                    norm_vals = (feat_vals - f_min) / (f_max - f_min)
-                    # Save parameters for future transformations
-                    self.normalization_dict[feat]['method'] = 'min_max'
-                    self.normalization_dict[feat]['params'] = {'min': f_min, 'max': f_max}
-
-                # If specified normalization method is z-score approach
-                if normalization_method == 'z_score':
-                    sigma = feat_vals.std()
-                    mu = feat_vals.mean()
-                    z_scores = (feat_vals - mu) / sigma
-                    norm_vals = st.norm.cdf(z_scores)
-                    # Save parameters for future transformations
-                    self.normalization_dict[feat]['method'] = 'z_score'
-                    self.normalization_dict[feat]['params'] = {'sigma': sigma, 'mu': mu}
-
-                # Store results to be returned
-                normalized_feats[feat] = norm_vals
-
-        # Add normalized features to dataframe
-        n_cols = len(data.columns)
-        for k in normalized_feats.keys():
-            data.insert(loc=n_cols, column=f'{k}_normalized', value=normalized_feats[k])
-            n_cols += 1
+        data['Target'] = target_categories
 
         return data
 
-    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int,
-                      nrc_embedding_file: str, slang_dict_path: str) -> pd.DataFrame:
-        """Learns all necessary information from the provided training data in order to generate the complete set of
-        features to be fed into the classification model. In the fitting process, the training data is also transformed
-        into the feature-set expected by the model and returned.
+    def _fit_baseline_model(self, train_data: pd.DataFrame, tasks: List[str]) -> pd.DataFrame:
+        """Trains a baseline categorization model, which predicts the target category most frequently seen in the
+        training data for every
 
         Arguments:
-        ---------
+        ----------
         train_data
-            The training data that is used to define the feature-engineering methods.
-        embedding_file_path
-            File path for the Glove embeddings file.
-        embedding_dim
-            The dimension of the embeddings.
-        slang_dict_path
-            File path for the Slang dictionary file.
+            The data set, with the complete set of engineered features, that is used to train the model.
+        tasks
+            The classification task(s) that the model is being trained to predict. If a list of tasks is given then the
+            same model is trained to predict each of those labels simultaneously. To train an individual model for each
+            task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
+            'hate_speech_detection', 'target_or_general', 'aggression_detection'.
+
 
         Returns:
-        -------
-        transformed_data
-            The original train_data dataframe with new columns that include the calculated features for each observation
-            in the dataset.
+        --------
+        A copy of the original dataframe with new columns appended that contain the baseline model predictions for the
+        specified training task(s).
         """
 
-        # Get the training data, to be used for fitting
-        self.train_data = train_data
-        self.train_data['cleaned_text'].fillna('', inplace=True)
+        # Initialise prediction dataframe
+        pred_df = train_data
 
-        # Save the slang dictionary path for use in the model
-        self.slang_dict_path = slang_dict_path
+        # Get prediction value(s)
+        most_frequent_target = {}
+        for t in tasks:
+            if t == 'hate_speech_detection':
+                hs_mode = train_data['HS'].mode().values[0]
+                most_frequent_target['HS'] = hs_mode
+            if t == 'target_or_general':
+                tr_mode = train_data['TR'].mode().values[0]
+                most_frequent_target['TR'] = tr_mode
+            if t == 'aggression_detection':
+                ag_mode = train_data['AG'].mode().values[0]
+                most_frequent_target['AG'] = ag_mode
 
-        # Normalize count features from data cleaning process
-        transformed_data = self.normalize_feature(data=self.train_data,
-                                                  feature_columns=['!_count', '?_count', '$_count', '*_count'],
-                                                  normalization_method='z_score')
+        # Save trained predictions
+        self.most_frequent_category = most_frequent_target
+
+        # Add predictions to the dataframe
+        n_cols = len(pred_df.columns)
+        for k in most_frequent_target.keys():
+            pred = most_frequent_target[k]
+            pred_df.insert(loc=n_cols, column=f'{k}_prediction', value=pred)
+
+        return pred_df
+
+    def _fit_random_forest_model(self, train_data: pd.DataFrame, features: Optional[List[str]],
+                                 embedding_features: Optional[List[str]]) -> pd.DataFrame:
+        """Trains a random forest model to predict the target category/categories specified in the tasks list.
+
+        Arguments:
+        ----------
+        train_data
+            The data set, with the complete set of engineered features, that is used to train the model.
+        features
+            The set of features to be used in the classification task.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
 
 
-        # Get slang words sentiment scores feature
-        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
+        Returns:
+        --------
+        A copy of the original dataframe with new columns appended that contain the random forest classifier predictions
+        for the specified training task(s).
+        """
 
-        # Get NRC (emotion and sentiment word) counts feature
-        transformed_data = self._NRC_counts(transformed_data)
-        self.nrc_embeddings = nrc_embedding_file
-        transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=nrc_embedding_file)
+        # At least one of features or embedding_features must be non-empty
+        assert len(features) > 0 or len(embedding_features) > 0, \
+            'At least one feature must be provided in order to train a classification model'
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
+
+        # Limit training data to include only the features and rid of NAs
+        x_train = train_data[features]
+
+        # Process embedding(s) features, if they exist
+        self.embedding_features = embedding_features
+        if embedding_features is not None:
+            for ef in embedding_features:
+                embeddings = np.stack(train_data[ef])
+                col_prefix = f'{ef}_dim_'
+                emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+                x_train = pd.concat([x_train, embeddings], axis=1)
+
+        # Specify classification objective(s)
+        # If treating classification tasks separately as binary objectives
+        if self.prediction_target == 'separate':
+            y_train = train_data[self.task_cols]
+            if y_train.shape[1] < 2:
+                y_train = y_train.values.flatten()
+
+            # Initialize Random Forest Classifier
+            clf = RandomForestClassifier(n_estimators=self.model_params['n_estimators'],
+                                         criterion=self.model_params['criterion'],
+                                         max_depth=self.model_params['max_depth'],
+                                         min_samples_split=self.model_params['min_samples_split'],
+                                         min_samples_leaf=self.model_params['min_samples_leaf'],
+                                         max_features=self.model_params['max_features'],
+                                         bootstrap=self.model_params['bootstrap'],
+                                         n_jobs=self.model_params['n_jobs'],
+                                         random_state=self.model_params['random_state'],
+                                         class_weight=self.model_params['class_weight'],
+                                         max_samples=self.model_params['max_samples'])
+
+            # Fit to the training data
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.random_forest_classifier = clf
+
+            # Get the training data predictions
+            y_pred = clf.predict(x_train)
+            y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
+            pred_df = deepcopy(train_data)
+            n_cols = len(pred_df.columns)
+            for t in task_cols:
+                pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+                n_cols += 1
+
+        # If treating classification tasks as a single, multi-class objective
+        elif self.prediction_target == 'together':
+
+            y_train = train_data['Target']
+
+            # Initialize Random Forest Classifier
+            clf = RandomForestClassifier(n_estimators=self.model_params['n_estimators'],
+                                         criterion=self.model_params['criterion'],
+                                         max_depth=self.model_params['max_depth'],
+                                         min_samples_split=self.model_params['min_samples_split'],
+                                         min_samples_leaf=self.model_params['min_samples_leaf'],
+                                         max_features=self.model_params['max_features'],
+                                         bootstrap=self.model_params['bootstrap'],
+                                         n_jobs=self.model_params['n_jobs'],
+                                         random_state=self.model_params['random_state'],
+                                         class_weight=self.model_params['class_weight'],
+                                         max_samples=self.model_params['max_samples'])
+
+            # Fit to the training data
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.random_forest_classifier = clf
+
+            # Get the training data predictions
+            y_pred = clf.predict(x_train)
+            y_pred = pd.DataFrame(y_pred, columns=['Target'])
+            pred_df = deepcopy(train_data)
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
+
+        return pred_df
+
+    def _fit_svm_model(self, train_data: pd.DataFrame, features: Optional[List[str]],
+                       embedding_features: Optional[List[str]]) -> pd.DataFrame:
+        """Trains a support vector machine to predict the target category/categories specified in the tasks list.
+
+        Arguments:
+        ----------
+        train_data
+            The data set, with the complete set of engineered features, that is used to train the model.
+        features
+            The set of features to be used in the classification task.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
 
 
-        # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
+        Returns:
+        --------
+        A copy of the original dataframe with new columns appended that contain the SVM classifier predictions
+        for the specified training task(s).
+        """
 
-        # Get BERTweet Sentence embeddings
-        self.get_bertweet_embeddings(transformed_data)
+        # At least one of features or embedding_features must be non-empty
+        assert len(features) > 0 or len(embedding_features) > 0, \
+            'At least one feature must be provided in order to train an SVM classification model'
 
-        # Get Glove embeddings and aggregate across all words
-        self.embedding_file_path = embedding_file_path
-        self.embedding_dim = embedding_dim
-        self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
-        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
-            lambda x: get_embedding_ave(x, embedding_dim))
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
+
+        # Limit training data to include only the features and rid of NAs
+        x_train = train_data[features]
+
+        # Process embedding(s) features, if they exist
+        self.embedding_features = embedding_features
+        if embedding_features is not None:
+            for ef in embedding_features:
+                embeddings = np.stack(train_data[ef])
+                col_prefix = f'{ef}_dim_'
+                emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+                x_train = pd.concat([x_train, embeddings], axis=1)
+
+        # Save model features
+        self.features = features
+        self.embedding_features = embedding_features
+
+        # If treating classification tasks separately as binary objectives
+        if self.prediction_target == 'separate':
+            # Combine target columns into one column if multiple tasks are given
+            y_train = train_data[task_cols].values
+
+            # Train SVM model
+            clf = SVC(kernel=self.model_params['kernel'],
+                      degree=self.model_params['degree'],
+                      C=self.model_params['C'],
+                      coef0=self.model_params['coef0'],
+                      probability=self.model_params['probability'])
+            multi_target_clf = MultiOutputClassifier(clf)
+            multi_target_clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.multi_target_classifier = multi_target_clf
+
+            # Generate predictions on training data
+            y_pred = multi_target_clf.predict(x_train)
+
+            # Create a DataFrame for predictions
+            pred_df = deepcopy(train_data)
+            for i, col in enumerate(task_cols):
+                pred_df[f'{col}_prediction'] = y_pred[:, i]
+
+            return pred_df
+
+        # If treating classification tasks as a single, multi-class objective
+        elif self.prediction_target == 'together':
+            # Combine target columns into one column if multiple tasks are given
+            y_train = train_data['Target'].values
+
+            # Train SVM model
+            clf = SVC(kernel=self.model_params['kernel'],
+                      degree=self.model_params['degree'],
+                      C=self.model_params['C'],
+                      coef0=self.model_params['coef0'],
+                      probability=self.model_params['probability'])
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.multi_target_classifier = clf
+
+            # Generate predictions on training data
+            y_pred = clf.predict(x_train)
+            #
+            y_pred = pd.DataFrame(y_pred, columns=['Target'])
+            pred_df = deepcopy(train_data)
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
+
+            return pred_df
+
+    def _fit_logistic_regression_model(self, train_data: pd.DataFrame, features: Optional[List[str]],
+                       embedding_features: Optional[List[str]]) -> pd.DataFrame:
+        """Trains a support vector machine to predict the target category/categories specified in the tasks list.
+
+        Arguments:
+        ----------
+        train_data
+            The data set, with the complete set of engineered features, that is used to train the model.
+        features
+            The set of features to be used in the classification task.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
 
 
-        # Update the fitted flag
+        Returns:
+        --------
+        A copy of the original dataframe with new columns appended that contain the logistic regression predictions
+        for the specified training task(s).
+        """
+
+        # At least one of features or embedding_features must be non-empty
+        assert len(features) > 0 or len(embedding_features) > 0, \
+            'At least one feature must be provided in order to train a classification model'
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
+
+        # Limit training data to include only the features and rid of NAs
+        x_train = train_data[features]
+
+        # Process embedding(s) features, if they exist
+        self.embedding_features = embedding_features
+        if embedding_features is not None:
+            for ef in embedding_features:
+                embeddings = np.stack(train_data[ef])
+                col_prefix = f'{ef}_dim_'
+                emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+                x_train = pd.concat([x_train, embeddings], axis=1)
+
+        # Save model features
+        self.features = features
+        self.embedding_features = embedding_features
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+
+        self.task_cols = task_cols
+
+        # If treating classification tasks separately as binary objectives
+        if self.prediction_target == 'separate':
+            # Combine target columns into one column if multiple tasks are given
+            y_train = train_data[task_cols].values
+
+            # Train logistic regression
+            clf = LogisticRegression(penalty=self.model_params['penalty'],  # 'l2'
+                                     random_state=self.model_params['random_state'],  # 42
+                                     solver=self.model_params['solver'],  # 'sag'
+                                     multi_class='ovr',
+                                     max_iter=self.model_params['max_iter'])  # 1000
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.logistic_regression_classifier = clf
+
+            # Generate predictions on training data
+            y_pred = clf.predict(x_train)
+
+            # Create a DataFrame for predictions
+            pred_df = deepcopy(train_data)
+            for i, col in enumerate(task_cols):
+                pred_df[f'{col}_prediction'] = y_pred[:, i]
+
+            return pred_df
+
+        # If treating classification tasks as a single, multi-class objective
+        elif self.prediction_target == 'together':
+            # Combine target columns into one column if multiple tasks are given
+            y_train = train_data['Target'].values
+
+            # Train logistic regression
+            clf = LogisticRegression(penalty=self.model_params['penalty'],
+                                     random_state=self.model_params['random_state'],
+                                     solver=self.model_params['solver'],
+                                     multi_class='multinomial',
+                                     max_iter=self.model_params['max_iter'])
+            clf.fit(x_train, y_train)
+
+            # Save the fit model
+            self.logistic_regression_classifier = clf
+
+            # Generate predictions on training data
+            y_pred = clf.predict(x_train)
+            #
+            y_pred = pd.DataFrame(y_pred, columns=['Target'])
+            pred_df = deepcopy(train_data)
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
+
+        return pred_df
+
+
+    def _fit_ensemble_model(self, train_data: pd.DataFrame, ensembler: str, features: Optional[List[str]],
+                       embedding_features: Optional[List[str]]) -> pd.DataFrame:
+        """Trains an ensembler to predict the target category/categories specified in the tasks list.
+
+        The sub-models include a Support Vector Machine Regression, a Random Forest Regression, a Logistic Regression
+        and a fine-tuned BERT model with an additional classification layer (so BERT + Linear Regression with Softmax).
+        The results (provided as percent probabilities for each class) of each of these models is then provided to the
+        ensemble model, which is either a logistic regression or a decision tree. (These classifiers were chosen due to
+        their transparency; their design will make it very easy to determine which submodels are most informative under
+        specific conditions. The ensembler looks at the provided results from the submodels to make the final
+        predictions. Note that this predictor is set up so that it requires the problem to be set up as a 5-class target
+        task, not 3 separate binary tasks.
+
+        Arguments:
+        ----------
+        train_data
+            The data set, with the complete set of engineered features, that is used to train the model.
+        ensembler
+            Specifies whether to use a Logistic Regression ('LR') or Decision Tree ('DT') as the ensembling classifier.
+        features
+            The set of features to be used in the classification task.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
+
+
+        Returns:
+        --------
+        A copy of the original dataframe with new columns appended that contain each of the sub-model probabilities, as
+        well as the overall ensembler predictions.
+        """
+
+        ##### Process the data #####
+
+        # At least one of features or embedding_features must be non-empty
+        assert len(features) > 0 or len(embedding_features) > 0, \
+            'At least one feature must be provided in order to train a classification model'
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
+
+        # Limit training data to include only the features and rid of NAs
+        x_train = train_data[features]
+
+        # Process embedding(s) features, if they exist
+        self.embedding_features = embedding_features
+        if embedding_features is not None:
+            for ef in embedding_features:
+                embeddings = np.stack(train_data[ef])
+                col_prefix = f'{ef}_dim_'
+                emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=train_data.index)
+                x_train = pd.concat([x_train, embeddings], axis=1)
+
+        # Save model features
+        self.features = features
+        self.embedding_features = embedding_features
+
+        # Specify which columns contain the target class(es)
+        task_cols = [self.target_map[t] for t in self.tasks]
+        self.task_cols = task_cols
+
+        # Combine target columns into one column if multiple tasks are given
+        y_train = train_data['Target'].values
+
+        ##### Fit the submodels and add their predictions to the DF #####
+        ensemble_train_df = deepcopy(train_data[['Target']])
+        ensemble_features = []
+
+        # SVM
+        # Train SVM model
+        clf_svm = SVC(kernel=self.model_params['SVM']['kernel'],
+                  degree=self.model_params['SVM']['degree'],
+                  C=self.model_params['SVM']['C'],
+                  coef0=self.model_params['SVM']['coef0'],
+                  probability=True)
+        clf_svm.fit(x_train, y_train)
+        # Save the fit model
+        self.ensembler_models['SVM'] = clf_svm
+        # Generate predictions on training data
+        y_pred_svm = clf_svm.predict_proba(x_train)
+        # Add sub-model predictions to dataframe
+        n = ensemble_train_df.shape[1]
+        for i in range(y_pred_svm.shape[1]):
+            col_title = f'SVM_{clf_svm.classes_[i]}'
+            vals = y_pred_svm[:, i]
+            ensemble_train_df.insert(loc=n, column=col_title, value=vals)
+            ensemble_features.append(col_title)
+            n += 1
+
+        # Random Forest
+        # Train the RF model
+        clf_rf = RandomForestClassifier(n_estimators=self.model_params['random_forest']['n_estimators'],
+                                     criterion=self.model_params['random_forest']['criterion'],
+                                     max_depth=self.model_params['random_forest']['max_depth'],
+                                     min_samples_split=self.model_params['random_forest']['min_samples_split'],
+                                     min_samples_leaf=self.model_params['random_forest']['min_samples_leaf'],
+                                     max_features=self.model_params['random_forest']['max_features'],
+                                     bootstrap=self.model_params['random_forest']['bootstrap'],
+                                     n_jobs=self.model_params['random_forest']['n_jobs'],
+                                     random_state=self.model_params['random_forest']['random_state'],
+                                     class_weight=self.model_params['random_forest']['class_weight'],
+                                     max_samples=self.model_params['random_forest']['max_samples'])
+        clf_rf.fit(x_train, y_train)
+        # Save the fit model
+        self.ensembler_models['random_forest_classifier'] = clf_rf
+        # Generate predictions on training data
+        y_pred_rf = clf_rf.predict_proba(x_train)
+        # Add sub-model predictions to dataframe
+        n = ensemble_train_df.shape[1]
+        for i in range(y_pred_rf.shape[1]):
+            col_title = f'RF_{clf_rf.classes_[i]}'
+            vals = y_pred_rf[:, i]
+            ensemble_train_df.insert(loc=n, column=col_title, value=vals)
+            ensemble_features.append(col_title)
+            n += 1
+
+        # Logistic Regression
+        # Train the LR model
+        clf_lr = LogisticRegression(penalty=self.model_params['logistic_regression']['penalty'],
+                                 random_state=self.model_params['logistic_regression']['random_state'],
+                                 solver=self.model_params['logistic_regression']['solver'],
+                                 multi_class='multinomial',
+                                 max_iter=self.model_params['logistic_regression']['max_iter'])
+        clf_lr.fit(x_train, y_train)
+        # Save the fit model
+        self.ensembler_models['logistic_regression_classifier'] = clf_lr
+        # Generate predictions on training data
+        y_pred_lr = clf_lr.predict_proba(x_train)
+        # Add sub-model predictions to dataframe
+        n = ensemble_train_df.shape[1]
+        for i in range(y_pred_lr.shape[1]):
+            col_title = f'LR_{clf_lr.classes_[i]}'
+            vals = y_pred_lr[:, i]
+            ensemble_train_df.insert(loc=n, column=col_title, value=vals)
+            ensemble_features.append(col_title)
+            n += 1
+
+
+        # BERT
+        # TODO: add reference to pre-trained BERT model call here
+
+        ##### Fit the ensembler and provide it JUST the submodel predictions as input #####
+
+        assert ensembler == 'LR' or ensembler == 'DT', \
+               "ensembler must be specified as one of 'LR' or 'DT' in order to run."
+
+        x_ensemble_train = ensemble_train_df[ensemble_features]
+        y_ensemble_train = ensemble_train_df['Target']
+
+        if ensembler == 'LR':
+            # Train the LR Ensembler
+            clf = LogisticRegression(penalty=self.model_params['ensembler']['penalty'],
+                                        random_state=self.model_params['ensembler']['random_state'],
+                                        solver=self.model_params['ensembler']['solver'],
+                                        multi_class='multinomial',
+                                        max_iter=self.model_params['ensembler']['max_iter'])
+            clf.fit(x_ensemble_train, y_ensemble_train)
+            # Save the fit model
+            self.ensembler_models['ensembler'] = clf
+            # Generate predictions on training data
+            y_pred = clf.predict(x_ensemble_train)
+
+        elif ensembler == 'DT':
+            # Train the Decision Tree Ensembler
+            clf = DecisionTreeClassifier(criterion=self.model_params['ensembler']['criterion'],
+                                         splitter=self.model_params['ensembler']['splitter'],
+                                         max_depth=None,
+                                         min_samples_split=2,
+                                         min_samples_leaf=1,
+                                         min_weight_fraction_leaf=0.0,
+                                         max_features=self.model_params['ensembler']['max_features'],
+                                         random_state=self.model_params['ensembler']['random_state'],
+                                         max_leaf_nodes=None,
+                                         min_impurity_decrease=0.0,
+                                         class_weight=self.model_params['ensembler']['class_weight'],
+                                         ccp_alpha=self.model_params['ensembler']['ccp_alpha'])
+            clf.fit(x_ensemble_train, y_ensemble_train)
+            # Save the fit model
+            self.ensembler_models['ensembler'] = clf
+            # Generate predictions on training data
+            y_pred = clf.predict(x_ensemble_train)
+
+        # Add ensemble predictions to sub-model
+        n = ensemble_train_df.shape[1]
+        # for i in range(y_pred.shape[1]):
+        #     col_title = f'Ensemble_{clf_lr.classes_[i]}'
+        #     vals = y_pred[:, i]
+        #     ensemble_train_df.insert(loc=n, column=col_title, value=vals)
+        #     ensemble_features.append(col_title)
+        #     n += 1
+        ensemble_train_df.insert(loc=n, column='Ensemble_target', value=y_pred)
+        # Save results
+        self.submodel_results = deepcopy(ensemble_train_df)
+
+        # Format predictions appropriately
+        y_pred = pd.DataFrame(y_pred, index=x_ensemble_train.index, columns=['Target'])
+        pred_df = deepcopy(train_data)
+        target_preds = {f'{t}_prediction': [] for t in self.targets}
+        for index, row in y_pred.iterrows():
+            if row['Target'] == 'HS+TR+AG':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(1)
+                target_preds['AG_prediction'].append(1)
+            elif row['Target'] == 'HS+TR':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(1)
+                target_preds['AG_prediction'].append(0)
+            elif row['Target'] == 'HS+AG':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(1)
+            elif row['Target'] == 'HS':
+                target_preds['HS_prediction'].append(1)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(0)
+            else:
+                target_preds['HS_prediction'].append(0)
+                target_preds['TR_prediction'].append(0)
+                target_preds['AG_prediction'].append(0)
+        n_cols = len(pred_df.columns)
+        for k in target_preds.keys():
+            pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+            n_cols += 1
+
+        return pred_df
+
+    def fit(self, train_data: pd.DataFrame, tasks: List[str], prediction_target: str, keep_training_data: bool = True,
+            parameters: Optional[dict] = None, features: Optional[List[str]] = None,
+            embedding_features: Optional[List[str]] = None) -> pd.DataFrame:
+        """Uses the provided data to train the model to perform the specified classification task.
+
+        Arguments:
+        ----------
+        train_data
+            The data set, with the complete set of engineered features, that is used to train the model.
+        tasks
+            The classification task(s) that the model is being trained to predict. If a list of tasks is given then the
+            same model is trained to predict each of those labels simultaneously. To train an individual model for each
+            task, a new model must be instantiated and fit for each label. Task labels may include any of the following:
+            'hate_speech_detection', 'target_or_general', 'aggression_detection'.
+        prediction_target
+            If "separate" then the tasks are treated as separate classification problems. If "together" then the tasks
+            are all grouped together and treated as a multi-class classification problem. This enables us to cut down on
+            the number of class-combinations that are predicted, as we know that TR and AG values cannot be 1 without
+            HS being 1.
+        keep_training_data
+            A boolean that indicates whether the training data should be stored on the model.
+        parameters
+            The dictionary of parameter values used to specify the model.
+        features
+            The list of features to be used in the classification task.
+        embedding_features
+            The set of embedding-type features to be used in the classification task.
+
+
+        Returns:
+        --------
+        A copy of the original dataframe with new columns appended that contain the model predictions for the specified
+        training task(s).
+
+        """
+
+        assert self.model_type is not None, 'The model_type must be specified in order to train a model.'
+
+        # Save task list
+        self.tasks = tasks
+
+        # Process target tasks into single categorization task
+        self.prediction_target = prediction_target
+        train_data = self._target_processing(train_data)
+
+        # Fit and predict baseline model
+        if self.model_type == 'baseline':
+            if keep_training_data:
+                self.train_data = train_data
+            pred_df = self._fit_baseline_model(train_data, tasks)
+
+        # Fit and predict random forest classifier
+        if self.model_type == 'random_forest':
+
+            # Save the model features
+            assert features is not None or embedding_features is not None, \
+                'At least one feature must be provided in order to tran a Random Forest classification model.'
+            self.features = features
+
+            # Save the default model parameters
+            self.model_params = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
+                                 'min_samples_split': 0.1, 'min_samples_leaf': 3, 'max_features': 'sqrt',
+                                 'bootstrap': True, 'n_jobs': None, 'random_state': 42,
+                                 'class_weight': 'balanced_subsample', 'max_samples': 0.2}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
+
+            # Save the training data
+            if keep_training_data:
+                self.train_data = train_data
+
+            # Train the model
+            pred_df = self._fit_random_forest_model(train_data, features, embedding_features)
+
+        # Fit and predict SVM Classifier
+        elif self.model_type == 'svm':
+
+            # Save the model features
+            assert features is not None or embedding_features is not None, \
+                'At least one feature must be provided in order to train a Support Vector Machine classification model.'
+
+            # Save the default model parameters
+            # highest performance hyperparameter setup (for separaate models) after some tuning
+            self.model_params = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
+
+            # train the classifiers
+            pred_df = self._fit_svm_model(train_data, features, embedding_features)
+
+        elif self.model_type == 'logistic_regression':
+
+            # Ensure we have model features
+            assert features is not None or embedding_features is not None, \
+                'At least one feature must be provided in order to train a Logistic Regression classification model.'
+
+            # Save the default model parameters
+            # TODO: NEED TO DO SOME HYPERPARAMETER TUNING FOR THIS MODEL
+            self.model_params = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag', 'max_iter': 1000}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for p in parameters.keys():
+                    self.model_params[p] = parameters[p]
+
+            # train the classifiers
+            pred_df = self._fit_logistic_regression_model(train_data, features, embedding_features)
+
+        elif self.model_type == 'ensembler_lr':
+
+            # Ensure we have model features
+            assert features is not None or embedding_features is not None, \
+                'At least one feature must be provided in order to train an Ensembler classification model.'
+            self.features = features
+
+            # Save the default model parameters
+            # TODO: NEED TO DO SOME HYPERPARAMETER TUNING FOR THIS MODEL
+            self.model_params = {}
+            self.model_params['SVM'] = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+            self.model_params['random_forest'] = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
+                'min_samples_split': 0.1, 'min_samples_leaf': 3, 'max_features': 'sqrt', 'bootstrap': True,
+                'n_jobs': None, 'random_state': 42, 'class_weight': 'balanced_subsample', 'max_samples': 0.2}
+            self.model_params['logistic_regression'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
+                'max_iter': 1000}
+            self.model_params['ensembler'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
+                'max_iter': 1000}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for model in parameters.keys():
+                    for p in parameters[model].keys():
+                        self.model_params[model][p] = parameters[model][p]
+
+            # train the classifiers
+            pred_df = self._fit_ensemble_model(train_data, 'LR', features, embedding_features)
+
+        elif self.model_type == 'ensembler_dt':
+
+            # Ensure we have model features
+            assert features is not None or embedding_features is not None, \
+                'At least one feature must be provided in order to train an Ensembler classification model.'
+            self.features = features
+
+            # Save the default model parameters
+            # TODO: NEED TO DO SOME HYPERPARAMETER TUNING FOR THIS MODEL
+            self.model_params = {}
+            self.model_params['SVM'] = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+            self.model_params['random_forest'] = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
+                'min_samples_split': 0.1, 'min_samples_leaf': 3, 'max_features': 'sqrt', 'bootstrap': True,
+                'n_jobs': None, 'random_state': 42, 'class_weight': 'balanced_subsample', 'max_samples': 0.2}
+            self.model_params['logistic_regression'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
+                'max_iter': 1000}
+            self.model_params['ensembler'] = {'criterion': 'gini', 'splitter': 'best', 'max_features': 'sqrt',
+                'random_state': 42, 'class_weight': 'balanced', 'ccp_alpha': 0.0}
+
+            # Replace specified defaults and save the provided model parameters
+            if parameters is not None:
+                for model in parameters.keys():
+                    for p in parameters[model].keys():
+                        self.model_params[model][p] = parameters[model][p]
+
+            # train the classifiers
+            pred_df = self._fit_ensemble_model(train_data, 'DT', features, embedding_features)
+
+        # Flag that model fitting has occurred
         self.fitted = True
 
-        return transformed_data
+        return pred_df
 
-
-    def transform(self, data: pd.DataFrame) -> pd.DataFrame:
-
-        """Uses the feature-generating methods that were fit in an earlier step to transform a new dataset to include
-        the feature-set expected by the classification model.
+    def predict(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Description
 
         Arguments:
-        ---------
+        ----------
         data
-            The data set for which the feature set is to be generated.
+            The data set, with the complete set of engineered features, that we want to make predictions for using a
+            trained model.
 
         Returns:
-        -------
-        transformed_data
-            The original dataframe with new columns that include the calculated features for each observation in the
-            dataset.
+        --------
+        A copy of the original dataframe with new columns appended that contain the model predictions.
         """
 
-        # Ensure feature generating methods have been trained prior to transforming the data
-        assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
+        assert self.fitted, 'You must train a model before calling the predict method.'
 
+        # Process target tasks into single categorization task
+        data = self._target_processing(data)
 
-        # Normalize count features from data cleaning process
-        transformed_data = self.normalize_feature(data=data,
-                                                  feature_columns=['!_count', '?_count', '$_count', '*_count'])
+        # Initialise prediction dataframe
+        pred_df = deepcopy(data)
 
-        # Get slang words sentiment scores feature
-        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
+        # Predictions for baseline model
+        if self.model_type == 'baseline':
 
-        # Get NRC values
-        transformed_data = self._NRC_counts(transformed_data)
-        transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=self.nrc_embeddings)
+            # Add predictions to the dataframe
+            n_cols = len(pred_df.columns)
+            for k in self.most_frequent_category:
+                pred = self.most_frequent_category[k]
+                pred_df.insert(loc=n_cols, column=f'{k}_prediction', value=pred)
 
-        # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
+        # Predictions for individual classifiers
+        if self.model_type == 'random_forest' or self.model_type == 'svm' or self.model_type == 'logistic_regression':
 
-        # Get BERTweet Sentence embeddings
-        self.get_bertweet_embeddings(transformed_data)
+            # Add appropriate engineered features
+            x_data = data[self.features]
 
-        # Get Glove embeddings and aggregate across all words
-        self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
-        transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
-            lambda x: get_embedding_ave(x, self.embedding_dim))
+            # Add appropriate embedding features
+            if self.embedding_features is not None:
+                for ef in self.embedding_features:
+                    embeddings = np.stack(data[ef])
+                    col_prefix = f'{ef}_dim_'
+                    emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                    embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=data.index)
+                    x_data = pd.concat([x_data, embeddings], axis=1)
 
+            # Get the predictions
+            if self.prediction_target == 'separate':
+                if self.model_type == 'random_forest':
+                    y_pred = self.random_forest_classifier.predict(x_data)
+                elif self.model_type == 'svm':
+                    y_pred = self.multi_target_classifier.predict(x_data)
+                else:
+                    y_pred = self.logistic_regression_classifier.predict(x_data)
+                y_pred = pd.DataFrame(y_pred, columns=self.task_cols)
+                pred_df = deepcopy(data)
+                n_cols = len(pred_df.columns)
+                for t in self.task_cols:
+                    pred_df.insert(loc=n_cols, column=f'{t}_prediction', value=y_pred[t].values)
+                    n_cols += 1
 
-        return transformed_data
+            elif self.prediction_target == 'together':
+                if self.model_type == 'random_forest':
+                    y_pred = self.random_forest_classifier.predict(x_data)
+                elif self.model_type == 'svm':
+                    y_pred = self.multi_target_classifier.predict(x_data)
+                else:
+                    y_pred = self.logistic_regression_classifier.predict(x_data)
+                y_pred = pd.DataFrame(y_pred, columns=['Target'])
+                pred_df = deepcopy(data)
+                target_preds = {f'{t}_prediction': [] for t in self.targets}
+                for index, row in y_pred.iterrows():
+                    if row['Target'] == 'HS+TR+AG':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(1)
+                        target_preds['AG_prediction'].append(1)
+                    elif row['Target'] == 'HS+TR':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(1)
+                        target_preds['AG_prediction'].append(0)
+                    elif row['Target'] == 'HS+AG':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(1)
+                    elif row['Target'] == 'HS':
+                        target_preds['HS_prediction'].append(1)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(0)
+                    else:
+                        target_preds['HS_prediction'].append(0)
+                        target_preds['TR_prediction'].append(0)
+                        target_preds['AG_prediction'].append(0)
+                n_cols = len(pred_df.columns)
+                for k in target_preds.keys():
+                    pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                    n_cols += 1
+
+        # Predictions for ensembler models
+        if self.model_type == 'ensembler_lr' or self.model_type == 'ensembler_dt':
+
+            # Add appropriate engineered features
+            x_data = data[self.features]
+
+            # Add appropriate embedding features
+            if self.embedding_features is not None:
+                for ef in self.embedding_features:
+                    embeddings = np.stack(data[ef])
+                    col_prefix = f'{ef}_dim_'
+                    emb_cols = [col_prefix + str(dim) for dim in range(embeddings.shape[1])]
+                    embeddings = pd.DataFrame(embeddings, columns=emb_cols, index=data.index)
+                    x_data = pd.concat([x_data, embeddings], axis=1)
+
+            # Add submodel predictions to the ensembler input DF
+            ensemble_input_df = deepcopy(data[['Target']])
+            ensemble_features = []
+
+            # SVM
+            clf_svm = self.ensembler_models['SVM']
+            y_pred_svm = clf_svm.predict_proba(x_data)
+            # Add sub-model predictions to dataframe
+            n = ensemble_input_df.shape[1]
+            for i in range(y_pred_svm.shape[1]):
+                col_title = f'SVM_{clf_svm.classes_[i]}'
+                vals = y_pred_svm[:, i]
+                ensemble_input_df.insert(loc=n, column=col_title, value=vals)
+                ensemble_features.append(col_title)
+                n += 1
+
+            # Random Forest
+            clf_rf = self.ensembler_models['random_forest_classifier']
+            y_pred_rf = clf_rf.predict_proba(x_data)
+            # Add sub-model predictions to dataframe
+            n = ensemble_input_df.shape[1]
+            for i in range(y_pred_rf.shape[1]):
+                col_title = f'RF_{clf_rf.classes_[i]}'
+                vals = y_pred_rf[:, i]
+                ensemble_input_df.insert(loc=n, column=col_title, value=vals)
+                ensemble_features.append(col_title)
+                n += 1
+
+            # Logistic Regression
+            clf_lr = self.ensembler_models['logistic_regression_classifier']
+            y_pred_lr = clf_lr.predict_proba(x_data)
+            # Add sub-model predictions to dataframe
+            n = ensemble_input_df.shape[1]
+            for i in range(y_pred_lr.shape[1]):
+                col_title = f'LR_{clf_lr.classes_[i]}'
+                vals = y_pred_lr[:, i]
+                ensemble_input_df.insert(loc=n, column=col_title, value=vals)
+                ensemble_features.append(col_title)
+                n += 1
+
+            # TODO: add BERT classification model
+
+            # Specify input for ensembler
+            x_ensemble = ensemble_input_df[ensemble_features]
+
+            # load the fit model
+            clf = self.ensembler_models['ensembler']
+            # Generate predictions on training data
+            y_pred = clf.predict(x_ensemble)
+
+            # Add ensemble predictions to sub-model
+            n = ensemble_input_df.shape[1]
+            ensemble_input_df.insert(loc=n, column='Ensemble_target', value=y_pred)
+
+            # Save results
+            self.submodel_results_test = deepcopy(ensemble_input_df)
+
+            # Format predictions appropriately
+            y_pred = pd.DataFrame(y_pred, index=x_ensemble.index, columns=['Target'])
+
+            # Format predictions appropriately
+            pred_df = deepcopy(data)
+            target_preds = {f'{t}_prediction': [] for t in self.targets}
+            for index, row in y_pred.iterrows():
+                if row['Target'] == 'HS+TR+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS+TR':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(1)
+                    target_preds['AG_prediction'].append(0)
+                elif row['Target'] == 'HS+AG':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(1)
+                elif row['Target'] == 'HS':
+                    target_preds['HS_prediction'].append(1)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+                else:
+                    target_preds['HS_prediction'].append(0)
+                    target_preds['TR_prediction'].append(0)
+                    target_preds['AG_prediction'].append(0)
+            n_cols = len(pred_df.columns)
+            for k in target_preds.keys():
+                pred_df.insert(loc=n_cols, column=k, value=target_preds[k])
+                n_cols += 1
+
+        return pred_df
 
 
 if __name__ == '__main__':
