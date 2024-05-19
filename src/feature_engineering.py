@@ -13,6 +13,7 @@ import csv
 import re
 
 from nrclex import NRCLex
+# from googletrans import Translator
 from translate import Translator
 from nltk.tokenize import word_tokenize
 from gensim.models import KeyedVectors
@@ -145,6 +146,12 @@ class FeatureEngineering:
         translator = Translator(from_lang="es", to_lang="en")
 
         def translate_tweet(tweet):
+
+            # Try this code instead if you reach your daily allotment through the translate package, 
+            # And uncomment package import at top of file
+            # translator = Translator()
+            # translated = translator.translate(tweet, dest='en', src='es')
+
             translated = translator.translate(tweet)
             return translated
 
