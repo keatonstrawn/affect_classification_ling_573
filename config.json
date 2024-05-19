@@ -24,7 +24,8 @@
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
-                  "sadness", "surprise", "trust"] ,
+                  "sadness", "surprise", "trust", "negative_esp", "positive_esp", "anger_esp", "anticipation_esp", 
+                  "disgust_esp", "fear_esp", "joy_esp", "sadness_esp", "surprise_esp", "trust_esp"] ,
                 "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings"] ,
                 "model_params": {
                   "random_forest_params": {

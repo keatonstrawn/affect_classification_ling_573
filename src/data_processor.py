@@ -292,7 +292,7 @@ class DataProcessor:
         cleaned_tweet, capital_pct = self._get_capital_perc_and_lowercase(cleaned_tweet)
 
         # Replace misspelled words with proper spellings
-        # cleaned_tweet = self._spellcheck(cleaned_tweet, language)
+        cleaned_tweet = self._spellcheck(cleaned_tweet, language)
 
         # Replace emojis with names
         cleaned_tweet = self._replace_emojis(cleaned_tweet, language)

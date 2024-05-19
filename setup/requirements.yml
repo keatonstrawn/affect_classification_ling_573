@@ -21,7 +21,7 @@ dependencies:
     - nrclex
     - tensorflow-hub
     - pyspellchecker
-    - googletrans
+    - translate
 
 
 
