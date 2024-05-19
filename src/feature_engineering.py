@@ -657,7 +657,7 @@ class FeatureEngineering:
             # translates the cleaned text to English, runs normal NRCLex
             transformed_data = self._translator(transformed_data)
             transformed_data = self._NRC_counts(transformed_data)
-            transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=lexpath)
+            transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=nrc_embedding_file)
 
             # uses Spanish translated NRCLex to get counts
             transformed_data = self._Span_NRC_counts(lexpath, transformed_data)
@@ -721,7 +721,7 @@ class FeatureEngineering:
             # translates the cleaned text to English, runs normal NRCLex
             transformed_data = self._translator(transformed_data)
             transformed_data = self._NRC_counts(transformed_data)
-            transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=self.lexpath)
+            transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=self.nrc_embeddings)
 
             # uses Spanish translated NRCLex to get counts
             transformed_data = self._Span_NRC_counts(self.lexpath, transformed_data)
