@@ -106,7 +106,7 @@ class ClassificationModel:
                     new_category = f'{new_category}{task_cols[1]}+'
                 # If class is HS, is it AG?
                 if targets.iloc[2] == 1:
-                    new_category = f'{new_category}{task_cols[1]}'
+                    new_category = f'{new_category}{task_cols[2]}'
                 # Remove trailing +, if it exists
                 new_category = new_category.rstrip('+')
             else:
