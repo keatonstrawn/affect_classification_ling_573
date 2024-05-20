@@ -117,23 +117,31 @@ classification tasks. If a model is only trained for a subset of the classificat
 predict methods will return dataframes that only contain the columns affiliated with the target classification tasks on
 which the model was trained.
 
-Model type: baseline, random_forest, svm
+UPDATE: We've added ensembling methods to the classification class. The two ensmblers, a logistic regression and a
+a decision tree, look at the probabilities that each submodel (random_forest, SVM, logistic_regression) assigns each
+class (NotHS, HS, HS+TR, HS+AG, HS+TR+AG) and then makes a prediction for the final class label based on the submodel
+predictions.
+
+Model type: baseline, random_forest, svm, logistic_regression
 New columns:
     HS_prediction: boolean (0 or 1)
     TR_prediction: boolean (0 or 1)
     AG_prediction: boolean (0 or 1)
 
-Model type: (None - anticipating adding more classification models in the future)
+Model type: ensembler_dt, ensembler_lr
 New columns:
-    HS_0: float [0, 1]
-    HS_1: float [0, 1]
-    TR_0: float [0, 1]
-    TR_1: float [0, 1]
-    AG_0: float [0, 1]
-    AG_1: float [0, 1]
     HS_prediction: boolean (0 or 1)
     TR_prediction: boolean (0 or 1)
     AG_prediction: boolean (0 or 1)
+New (additional) output (pandas DataFrame saved on the ClassificationModel object):
+    For each submodel:
+        NotHS: probability (value in [0,1])
+        HS: probability (value in [0,1])
+        HS+TR: probability (value in [0,1])
+        HS+AG: probability (value in [0,1])
+        HS+TR+AG: probability (value in [0,1])
+    For the ensembler:
+        prediction: category (One of: NotHS, HS, HS+TR, HS+AG, HS+TR+AG)
 
 
 

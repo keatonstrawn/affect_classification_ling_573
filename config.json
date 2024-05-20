@@ -34,6 +34,16 @@
                   },
                   "svm_params":{
                     "kernel": "poly", "degree": 3, "C": 1.0, "coef0": 0, "probability": true
+                  },
+                  "logistic_regression_params": {
+                    "penalty": "l2", "random_state": 42, "solver": "sag", "max_iter": 1000
+                  },
+                  "ensembler_lr_params": {
+                    "penalty": "l2", "random_state": 42, "solver": "sag", "max_iter": 1000
+                  },
+                  "ensembler_dt_params": {
+                    "criterion": "gini", "splitter": "best", "max_features": "sqrt", "random_state": 42,
+                    "class_weight": "balanced", "ccp_alpha": 0.0}
                   }
                 }
             }

@@ -135,8 +135,24 @@ def main(config):
     # Choose parameters based on classification approach
     if config['model']['classification']['approach'] == "random_forest":
         parameters = parameters=config['model']['classification']['params']['model_params']['random_forest_params']
-    else:
+    elif config['model']['classification']['approach'] == 'svm':
         parameters=config['model']['classification']['params']['model_params']['svm_params']
+    elif config['model']['classification']['approach'] == 'logistic_regression':
+        parameters = config['model']['classification']['params']['model_params']['logistic_regression_params']
+    elif config['model']['classification']['approach'] == 'ensembler_lr':
+        parameters = {
+            'SVM': config['model']['classification']['params']['model_params']['svm_params'],
+            'random_forest': config['model']['classification']['params']['model_params']['random_forest_params'],
+            'logistic_regression': config['model']['classification']['params']['model_params']['logistic_regression_params'],
+            'ensembler': config['model']['classification']['params']['model_params']['ensembler_lr_params']
+        }
+    else:  # config['model']['classification']['approach'] == 'ensembler_dt':
+        parameters = {
+            'SVM': config['model']['classification']['params']['model_params']['svm_params'],
+            'random_forest': config['model']['classification']['params']['model_params']['random_forest_params'],
+            'logistic_regression': config['model']['classification']['params']['model_params']['logistic_regression_params'],
+            'ensembler': config['model']['classification']['params']['model_params']['ensembler_dt_params']
+        }
 
     # Train the model
     train_pred = myClassifier.fit(train_df,
