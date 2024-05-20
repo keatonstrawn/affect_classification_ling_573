@@ -72,6 +72,9 @@ class FeatureEngineering:
         self.embedding_file_path = None
         self.embedding_dim = None
 
+        # save language info
+        self.language = None
+
     
     def get_slang_score(self, data: pd.DataFrame, slang_dict_path: str) -> pd.DataFrame:
         """This method uses data from the SlangSD resource, which labels slang words with their  
@@ -200,7 +203,8 @@ class FeatureEngineering:
         embedding_type
             '1' == FastText
             '2' == BERTweet
-            '3' (or anything else) == GloVe
+            '3' == GloVe
+            '4' (or else) TwHIN-BERT for spanish
         tokenizer
             Optional Tokenizer for BERTweet embeddings
 
@@ -233,8 +237,22 @@ class FeatureEngineering:
             # embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
             embeddings = [embed_np[i].tolist() for i in range(len(input_ids[0]))]
             embeddings = np.array(embeddings).flatten()
-        else:
+        elif embedding_type == '3':
             embeddings = [model[word] for word in words if word in model.keys()]
+        else:
+            inputs = tokenizer(tweet, return_tensors='pt', padding=True, truncation=True, max_length=512)
+            outputs = model(**inputs)
+
+            # Step 5: Generate embeddings
+            with torch.no_grad():
+                outputs = model(**inputs)
+                embeddings = outputs.last_hidden_state
+
+            # Step 6: Process embeddings
+            # Typically, you may want to use the embeddings of the [CLS] token (first token) for each sequence
+            embeddings = embeddings[:, 0, :]
+            embeddings = embeddings.numpy()
+            embeddings = embeddings.tolist()
 
         return embeddings
 
@@ -260,7 +278,7 @@ class FeatureEngineering:
         # get the embeddings for each row and save to a new column in the dataframe
         df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '1'))
 
-    def get_bertweet_embeddings(self, df: pd.DataFrame):
+    def get_bertweet_embeddings(self, df: pd.DataFrame, language: str):
         """Function to get BERTweet embeddings from a dataframe and automatically add them to this dataframe.
         These embeddings are learned from a model, with d_e == 768
 
@@ -274,12 +292,21 @@ class FeatureEngineering:
         Nothing
 
         """
-        # load tokenizer and model
-        model = AutoModel.from_pretrained("vinai/bertweet-base")
-        tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
-
-        # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '2', tokenizer))
+        if language == 'en':
+            # load tokenizer and model
+            model = AutoModel.from_pretrained("vinai/bertweet-base")
+            tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
+            # get the embeddings for each row and save to a new column in the dataframe
+            df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+                                                                                                      '3',
+                                                                                                      tokenizer))
+        else:
+            tokenizer = AutoTokenizer.from_pretrained('Twitter/twhin-bert-base')
+            model = AutoModel.from_pretrained('Twitter/twhin-bert-base')
+            # get the embeddings for each row and save to a new column in the dataframe
+            df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+                                                                                                      '4',
+                                                                                                      tokenizer))
 
     def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
@@ -440,7 +467,7 @@ class FeatureEngineering:
 
         return data
 
-    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int, slang_dict_path: str) -> pd.DataFrame:
+    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int, slang_dict_path: str, language: str) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -455,6 +482,8 @@ class FeatureEngineering:
             The dimension of the embeddings.
         slang_dict_path
             File path for the Slang dictionary file.
+        language
+            Whether we are generating features for English or Spanish
 
         Returns:
         -------
@@ -469,24 +498,25 @@ class FeatureEngineering:
         # Save the slang dictionary path for use in the model
         self.slang_dict_path = slang_dict_path
 
+        # Save language
+        self.language = language
+
         # Normalize count features from data cleaning process
         transformed_data = self.normalize_feature(data=train_data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'],
                                                   normalization_method='z_score')
 
-
         # Get slang words sentiment scores feature
-        # transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
+        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
 
         # Get NRC (emotion and sentiment word) counts feature
         transformed_data = self._NRC_counts(transformed_data)
 
-
         # Get Universal Sentence embeddings
-        # self.get_universal_sent_embeddings(transformed_data, language='es')
+        self.get_universal_sent_embeddings(transformed_data, language)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data, language)
 
         # Get Glove embeddings and aggregate across all words
         self.embedding_file_path = embedding_file_path
@@ -494,7 +524,6 @@ class FeatureEngineering:
         self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, embedding_dim))
-
 
         # Update the fitted flag
         self.fitted = True
@@ -534,10 +563,10 @@ class FeatureEngineering:
         transformed_data = self._NRC_counts(transformed_data)
 
         # Get Universal Sentence embeddings
-        # self.get_universal_sent_embeddings(transformed_data, language='es')
+        self.get_universal_sent_embeddings(transformed_data, language=self.language)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data, language=self.language)
 
         # Get Glove embeddings and aggregate across all words
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
