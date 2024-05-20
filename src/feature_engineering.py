@@ -297,14 +297,14 @@ class FeatureEngineering:
             model = AutoModel.from_pretrained("vinai/bertweet-base")
             tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
             # get the embeddings for each row and save to a new column in the dataframe
-            df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+            df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
                                                                                                       '3',
                                                                                                       tokenizer))
         else:
             tokenizer = AutoTokenizer.from_pretrained('Twitter/twhin-bert-base')
             model = AutoModel.from_pretrained('Twitter/twhin-bert-base')
             # get the embeddings for each row and save to a new column in the dataframe
-            df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+            df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
                                                                                                       '4',
                                                                                                       tokenizer))
 
