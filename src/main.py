@@ -101,7 +101,9 @@ def main(config):
                                     embedding_dim=config['model']['feature_engineering']['embedding_dim'],
                                     slang_dict_path=config['model']['feature_engineering']['slang_dict_path'],
                                     language=input_tsv_files['language'],
-                                    lexpath=config['model']['feature_engineering']['span_NRC_path'])
+                                    lexpath=config['model']['feature_engineering']['span_NRC_path'],
+                                    load_translations=config['model']['feature_engineering']['load_translations'],
+                                    trans_path=config['model']['feature_engineering']['trans_path'])
 
         # Transform
         val_df = myFE.transform(myDP.processed_data['validation'])

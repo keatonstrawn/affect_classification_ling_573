@@ -143,6 +143,18 @@ class FeatureEngineering:
         return data
 
     def _translator(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        This method implements a translator to translate the dataframe's cleaned_text from Spanish to English.
+
+        Arguments:
+        -------
+        data
+            Pandas dataframe containing the preprocessed data
+        
+        Returns:
+        -------
+        The original dataset with one additional column labeled 'translated_text'
+        """
         translator = Translator(from_lang="es", to_lang="en")
 
         def translate_tweet(tweet):
@@ -158,8 +170,34 @@ class FeatureEngineering:
         data['translated_text'] = data['cleaned_text'].apply(translate_tweet)
         return data
 
+
+    def _load_translations(self, trans_path: str, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        This method reads in a .csv file with Spanish sentences translated into English,
+        and appends them as a column to the dataframe
+
+        Arguments:
+        -------
+        trans_path
+            The path to the .csv file containing the Spanish to English translation data.
+        data
+            Pandas dataframe containing the preprocessed data.
+        
+        Returns:
+        -------
+        The original dataset with one additional column labeled 'translated_text'
+        """
+        # Load the translations file
+        trans_df = pd.read_csv(trans_path)
+
+        # Add the translations column to the dataframe
+        data['translated_text'] = trans_df['translated_text'].astype(str).values
+
+        return data
+
     def _Span_NRC_counts(self, span_nrc_path: str, data: pd.DataFrame) -> pd.DataFrame:
-        """This method uses a translated set of data from the NRC Word-Emotion Association Lexicon, which labels words with either 
+        """
+        This method uses a translated set of data from the NRC Word-Emotion Association Lexicon, which labels words with either 
         a 1 or 0 based on the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, 
         joy, negative, positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
         in a tweet, then divides by the total number of counts to obtain a proportion. These proportions are added on to the end 
@@ -540,7 +578,7 @@ class FeatureEngineering:
 
         return data
 
-    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int, slang_dict_path: str, language: str, lexpath: str) -> pd.DataFrame:
+    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int, slang_dict_path: str, language: str, lexpath: str, load_translations: str, trans_path: Optional[str]) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -559,6 +597,11 @@ class FeatureEngineering:
             The language of the data.
         lexpath
             The path to the Spanish NRCLex .csv file.
+        load_translations
+            string to load translations or save them.
+        trans_path
+            File path for the Spanish to English translations file.
+        
 
         Returns:
         -------
@@ -566,7 +609,7 @@ class FeatureEngineering:
             The original train_data dataframe with new columns that include the calculated features for each observation
             in the dataset.
         """
-        # Get the language and lexpath saved
+        # Save the language and lexpath variables to the model
         self.language = language
         self.lexpath = lexpath
 
@@ -591,15 +634,19 @@ class FeatureEngineering:
             transformed_data = self._NRC_counts(transformed_data)
 
         elif language == 'spanish':
-   
-            # translates the cleaned text to English, runs normal NRCLex
-            transformed_data = self._translator(transformed_data)
-            transformed_data = self._NRC_counts(transformed_data)
-
+            
+            if load_translations == 'load':
+                transformed_data = self._load_translations(trans_path, transformed_data)
+                transformed_data = self._NRC_counts(transformed_data)
+            else:
+                # translates the cleaned text to English, runs normal NRCLex
+                transformed_data = self._translator(transformed_data)
+                transformed_data.to_csv('data/translations.csv')
+                transformed_data = self._NRC_counts(transformed_data)
+                
             # uses Spanish translated NRCLex to get counts
             transformed_data = self._Span_NRC_counts(lexpath, transformed_data)
 
-        transformed_data.to_csv('outputs/spanish_features.csv')
 
         # Get Universal Sentence embeddings
         self.get_universal_sent_embeddings(transformed_data)
@@ -613,7 +660,6 @@ class FeatureEngineering:
         self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, embedding_dim))
-
 
         # Update the fitted flag
         self.fitted = True
