@@ -4,14 +4,14 @@
             "filepath": "data",
             "training": "data/train_en.tsv" ,
             "devtest": "data/dev_en.tsv" ,
-            "language": "english"
+            "language": "spanish"
         },
-        "save_or_load": "load",
+        "save_or_load": "save",
         "processed_data_dir": "data/processed_data/"
   },
   "model": {
         "feature_engineering": {
-            "embedding_path": "data/glove.twitter.27B.25d.txt" ,
+            "embedding_path": "data/SBW-vectors-300-min5.txt" ,
             "embedding_dim": 25,
             "slang_dict_path": "data/SlangSD.txt"
         },
