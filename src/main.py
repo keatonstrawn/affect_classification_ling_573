@@ -96,13 +96,16 @@ def main(config):
         myFE = FeatureEngineering()
 
         # Fit
-        train_df = myFE.fit_transform(myDP.processed_data['train'],
+        train_df = myFE.fit_transform(train_data=myDP.processed_data['train'],
                                     embedding_file_path=config['model']['feature_engineering']['embedding_path'],
                                     embedding_dim=config['model']['feature_engineering']['embedding_dim'],
                                     slang_dict_path=config['model']['feature_engineering']['slang_dict_path'],
+                                    lexpath=config['model']['feature_engineering']['span_NRC_path'],
+                                    load_translations=config['model']['feature_engineering']['load_translations'],
+                                    trans_path=config['model']['feature_engineering']['trans_path'])
                                     stop_words_path=config['model']['feature_engineering']['stop_words_path'],
-                                    language=config['document_processing']['input_tsv_files']['language'])
-
+                                    language=config['document_processing']['input_tsv_files']['language'],
+                                    nrc_embedding_file=config['model']['feature_engineering']['nrc_embedding_file'])
         # Transform
         val_df = myFE.transform(myDP.processed_data['validation'])
 
@@ -147,11 +150,11 @@ def main(config):
                                 features=config['model']['classification']['params']['features'],
                                 embedding_features=config['model']['classification']['params']['embedding_features'])
 
-    # train_pred.to_csv("outputs/trained_data.csv")
+    train_pred.to_csv("outputs/trained_data.csv")
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
-    # val_pred.to_csv("outputs/classified_val_data.csv")
+    val_pred.to_csv("outputs/classified_val_data.csv")
     # create evaluation files based on val_pred
     make_eval_files(val_pred, 
                     input_tsv_files['language'], 

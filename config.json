@@ -14,7 +14,11 @@
             "embedding_path": "data/SBW-vectors-300-min5.txt" ,
             "embedding_dim": 25,
             "slang_dict_path": "data/SlangSD.txt",
-            "stop_words_path": "data/stopwords.txt"
+            "span_NRC_path": "data/lexico_nrc.csv",
+            "load_translations": "load",
+            "trans_path": "data/translations.csv"
+            "stop_words_path": "data/stopwords.txt",
+            "nrc_embedding_file": "data/glove.twitter.27B.25d.txt"
         },
         "classification": {
             "approach": "random_forest" ,
@@ -24,7 +28,8 @@
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
                   "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
-                  "sadness", "surprise", "trust", "slangscore"] ,
+                  "sadness", "surprise", "trust", "negative_esp", "positive_esp", "anger_esp", "anticipation_esp", 
+                  "disgust_esp", "fear_esp", "joy_esp", "sadness_esp", "surprise_esp", "trust_esp", "slangscore"] ,
                 "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings"] ,
                 "model_params": {
                   "random_forest_params": {
