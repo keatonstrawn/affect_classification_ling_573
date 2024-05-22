@@ -78,7 +78,7 @@ class ClassificationModel:
 
     def _target_processing(self, data):
         """Processes the target categories into a uniform format. So rather than having e.g. 3 binary categories for HS,
-        TR and AG (with dependencies) we have a single 5 category problem (HS, HS+TR, HS+AG, HS+TR+AG, None).
+        TR and AG (with dependencies) we have a single 5 category problem (HS, HS+TR, HS+AG, HS+TR+AG, NotHS).
 
         Arguments:
         ----------
@@ -1159,7 +1159,6 @@ class ClassificationModel:
                 n_cols += 1
 
         return pred_df
-
 
 
 if __name__ == '__main__':

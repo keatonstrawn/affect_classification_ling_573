@@ -12,12 +12,16 @@ import tensorflow_hub as hub
 import csv
 import re
 
+from src.nrc_lex_classifier import ExtendedNRCLex
+
 from nrclex import NRCLex
 from googletrans import Translator
 from nltk.tokenize import word_tokenize
 from gensim.models import KeyedVectors
 from transformers import AutoTokenizer, AutoModel, PreTrainedTokenizerBase, PreTrainedModel
 from typing import List, Union, Optional, Dict
+from copy import deepcopy
+from sentence_transformers import SentenceTransformer
 
 
 
@@ -73,9 +77,16 @@ class FeatureEngineering:
         self.embedding_file_path = None
         self.embedding_dim = None
 
-    
+        # save language info
+        self.language = None
+
+        # Save extended-NRC info
+        self.nrc_embeddings = None
+        self.nrc = None
+
+
     def get_slang_score(self, data: pd.DataFrame, slang_dict_path: str) -> pd.DataFrame:
-        """This method uses data from the SlangSD resource, which labels slang words with their  
+        """This method uses data from the SlangSD resource, which labels slang words with their
         sentiment strength. The sentiment strength scale is from -2 to 2, where -2 is
         strongly negative, -1 is negative, 0 is neutral, 1 is positive, and 2 is strongly positive.
         This method sums the sentiment scores across all the slang words in a tweet. The resulting
@@ -88,7 +99,7 @@ class FeatureEngineering:
             File path for the slang dictionary file.
         Returns:
         -------
-        The original datasframe with one new column that contain the accumulated sentiment scores of slang words 
+        The original dataframe with one new column that contain the accumulated sentiment scores of slang words
         for each tweet in the dataset.
         """
 
@@ -102,22 +113,22 @@ class FeatureEngineering:
                 slang_dict[row[0]] = row[1]
 
         # helper code that lists the occuring slang words in a single tweet for every tweets in the dataset
-        slang_list = []  
+        slang_list = []
         # stores the accumulated sentiment score for a tweet, and stored
         # as a new column to the original dataframe
-        slang_score_list = []     
+        slang_score_list = []
 
         # iterate over every tweet to get the counts and score of slang words
-        for index, row in data.iterrows(): 
+        for index, row in data.iterrows():
             text = row['cleaned_text']
             # helper code that generates a list containing all occuring slang
             # words in a single tweet
-            occurence = [] 
+            occurence = []
             # Calculate the accumulated sentiment score of a tweet
             slang_score = 0
 
             # iterate over the slang dict to find matching slangs in a tweet
-            for slang_key in list(slang_dict.keys()): 
+            for slang_key in list(slang_dict.keys()):
                 my_regex = r"\b" + re.escape(slang_key) + r"\b"
                 match_slang = re.findall(my_regex, text)
                 if match_slang:
@@ -145,9 +156,9 @@ class FeatureEngineering:
         return data
 
     def _Span_NRC_counts(self, span_nrc_path: str, data: pd.DataFrame) -> pd.DataFrame:
-        """This method uses a translated set of data from the NRC Word-Emotion Association Lexicon, which labels words with either 
-        a 1 or 0 based on the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, 
-        joy, negative, positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
+        """This method uses a translated set of data from the NRC Word-Emotion Association Lexicon, which labels words with either
+        a 1 or 0 based on the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear,
+        joy, negative, positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words
         in a tweet, then divides by the total number of counts to obtain a proportion. These proportions are added on to the end 
         of the dataframe as count-based features.
 
@@ -162,7 +173,6 @@ class FeatureEngineering:
         -------
         The original dataset with ten new columns that contain the new emotion features generated for each tweet in the
         dataset.
-
         """
         with open(span_nrc_path, 'r') as f:
             reader = csv.reader(f, delimiter=',')
@@ -194,7 +204,7 @@ class FeatureEngineering:
                         senti_dict[s_word].append(sentiment)
                 else:
                     senti_dict[s_word] = [sentiment]
-                
+
         # add ten columns to the end of the dataframe, representing the eight emotional dimensions of NRC
         emotions = ['negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
         for emotion in emotions:
@@ -220,14 +230,17 @@ class FeatureEngineering:
         rowsums[rowsums == 0] = 1.0
         data.iloc[:, -10:] = data.iloc[:, -10:].div(rowsums, axis=0)
 
+        # ***Uncomment the line below to create file showing the data visualized***
+        # data.to_csv('test.txt', sep=',', header=True)
+
         return data
 
     def _NRC_counts(self, data: pd.DataFrame) -> pd.DataFrame:
 
         """This method uses data from the NRC Word-Emotion Association Lexicon, which labels words with either a 1 or 0 based on
-        the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative, 
-        positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words 
-        in a tweet, then divides by the total number of counts to obtain a proportion. These proportions are added on to the end 
+        the presence or absence of each of the following emotional dimensions: anger, anticipation, disgust, fear, joy, negative,
+        positive, sadness, surprise, trust. It sums the frequency counts in each of the ten dimensions across all the words
+        in a tweet, then divides by the total number of counts to obtain a proportion. These proportions are added on to the end
         of the dataframe as count-based features.
 
 
@@ -246,7 +259,7 @@ class FeatureEngineering:
         emotions = ['negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
         for emotion in emotions:
             data[emotion] = 0
-        
+
         # iterate over each tweet to get counts of each emotion classification
         for index, row in data.iterrows():
             text = word_tokenize(row['cleaned_text'])
@@ -270,6 +283,53 @@ class FeatureEngineering:
 
         return data
 
+    def _extended_NRC_counts(self, data: pd.DataFrame, embedding_file: str):
+        """This method uses GloVe embeddings and data from the NRC Word-Emotion Association Lexicon, which labels words
+        with either a 1 or 0 based on the presence or absence of each of the following emotional dimensions: anger,
+        anticipation, disgust, fear, joy, negative, positive, sadness, surprise, trust. A classification model is
+        trained on GloVe embeddings to predict the affiliated NRC emotion and valence values. This extends the basic
+        NRC counts to provide counts for any word/sub-word for which one can generate a GloVe embedding. The
+        probabilities predicted for each category are summed across each of the ten dimensions, across all the words in
+        a tweet, then divides by the total number of words. These proportions are added on to the end of the dataframe.
+
+
+        Arguments:
+        ---------
+        data
+            The data for which the feature is to be generated
+        embeddings_file
+            Points to the file containing the GloVe embeddings.
+
+        Returns:
+        -------
+        The original dataset with ten new columns that contain the new emotion features generated for each tweet in the
+        dataset.
+        """
+
+        # Initialize and train the NRC classifier
+        if not self.fitted:
+            NewNRCLex = ExtendedNRCLex()
+            NewNRCLex.fit(embedding_file)
+            self.nrc = NewNRCLex
+        else:
+            NewNRCLex = self.nrc
+        emo_classes = NewNRCLex.classes
+        emo_classes = emo_classes + '_ext'
+
+        # iterate over each tweet to get counts of each emotion classification
+        for emo in emo_classes:
+            data[emo] = 0.0
+        for index, row in data.iterrows():
+            if row['cleaned_text'] != '':
+                text = row['cleaned_text']
+                if len(text) > 0:
+                    res = NewNRCLex.transform(text, res_type='prob')
+                    for i in range(len(res)):
+                        emo = emo_classes[i]
+                        data.at[index, emo] = res[i]
+
+        return data
+
     def embeddings_helper(self, tweet: str, model: Union[Dict, KeyedVectors, PreTrainedModel], embedding_type: str,
                           tokenizer: Optional[PreTrainedTokenizerBase] = None) -> List[List[float]]:
         """Helper function to get FastText, BERTweet, or GloVe embeddings. Tokenizes input and accesses embeddings
@@ -284,7 +344,8 @@ class FeatureEngineering:
         embedding_type
             '1' == FastText
             '2' == BERTweet
-            '3' (or anything else) == GloVe
+            '3' == GloVe
+            '4' (or else) TwHIN-BERT for spanish
         tokenizer
             Optional Tokenizer for BERTweet embeddings
 
@@ -301,9 +362,7 @@ class FeatureEngineering:
             embeddings = [model[word] for word in words if word in model.key_to_index]
         elif embedding_type == '2':
             # different form of tokenizing
-
-
-            input_ids = torch.tensor([tokenizer.encode(tweet)])
+            input_ids = torch.tensor([tokenizer.encode(tweet, padding=True, truncation=True, max_length=130)])
             with torch.no_grad():
                 outputs = model(input_ids)
 
@@ -315,10 +374,26 @@ class FeatureEngineering:
             embed = outputs.last_hidden_state[0]
             embed_np = embed.detach().numpy()
             # embeddings = [embed_np[i].tolist() for i in range(len(tokens))]
-            embeddings = [embed_np[i].tolist() for i in range(len(input_ids[0]))]
-            embeddings = np.array(embeddings).flatten()
-        else:
+            # embeddings = [embed_np[i].tolist() for i in range(len(input_ids[0]))]
+            # embeddings = np.array(embeddings).flatten()
+            embeddings = np.mean(embed_np, axis=0)
+        elif embedding_type == '3':
             embeddings = [model[word] for word in words if word in model.keys()]
+        else:
+            inputs = tokenizer(tweet, return_tensors='pt', padding=True, truncation=True, max_length=512)
+            outputs = model(**inputs)
+
+            # Step 5: Generate embeddings
+            with torch.no_grad():
+                outputs = model(**inputs)
+                embeddings = outputs.last_hidden_state
+
+            # Step 6: Process embeddings
+            # Typically, you may want to use the embeddings of the [CLS] token (first token) for each sequence
+            embeddings = embeddings[:, 0, :]
+            embeddings = embeddings.numpy()
+            embeddings = embeddings.flatten()
+            #embeddings = embeddings.tolist()
 
         return embeddings
 
@@ -344,7 +419,7 @@ class FeatureEngineering:
         # get the embeddings for each row and save to a new column in the dataframe
         df['fastText_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '1'))
 
-    def get_bertweet_embeddings(self, df: pd.DataFrame):
+    def get_bertweet_embeddings(self, df: pd.DataFrame, language: str):
         """Function to get BERTweet embeddings from a dataframe and automatically add them to this dataframe.
         These embeddings are learned from a model, with d_e == 768
 
@@ -358,16 +433,35 @@ class FeatureEngineering:
         Nothing
 
         """
-        # load tokenizer and model
-        model = AutoModel.from_pretrained("vinai/bertweet-base")
-        tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
+        # # OLD METHOD REMOVED
+        # if language == 'en':
+        #     # load tokenizer and model
+        #     model = AutoModel.from_pretrained("vinai/bertweet-base")
+        #     tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
+        #     # get the embeddings for each row and save to a new column in the dataframe
+        #     df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+        #                                                                                               '2',
+        #                                                                                               tokenizer))
+        # else:
+        #     tokenizer = AutoTokenizer.from_pretrained('Twitter/twhin-bert-base')
+        #     model = AutoModel.from_pretrained('Twitter/twhin-bert-base')
+        #     # get the embeddings for each row and save to a new column in the dataframe
+        #     df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+        #                                                                                               '4',
+        #                                                                                               tokenizer))
 
+        tokenizer = AutoTokenizer.from_pretrained('Twitter/twhin-bert-base')
+        model = AutoModel.from_pretrained('Twitter/twhin-bert-base')
         # get the embeddings for each row and save to a new column in the dataframe
-        df['BERTweet_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, model, '2', tokenizer))
+        df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+                                                                                              '4',
+                                                                                              tokenizer))
 
     def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
-        are pretrained embeddings with d_e == 300.
+        are pretrained embeddings with d_e == 300. NOTE: these can work for english and spanish embeddings. If you want
+        to do a certain language you only need to change the embedding_file_path in config.json to be the respective
+        English or Spanish GloVe file
 
         Arguments:
         ---------
@@ -393,10 +487,10 @@ class FeatureEngineering:
         # get the embeddings for each row and save to a new column in the dataframe
         df['GloVe_embeddings'] = df['cleaned_text'].apply(lambda tweet: self.embeddings_helper(tweet, embeddings_index, '3'))
 
-    def get_universal_sent_embeddings(self, df: pd.DataFrame):
+    def get_universal_sent_embeddings(self, df: pd.DataFrame, language: str):
         """Function to get Google Universal Sentence Encoder embeddings from a dataframe and automatically add them
         to this dataframe. These embeddings are for a whole sentence rather than for individual words and are of
-        d_e == 512.
+        d_e == 512. Is also now able to do Spanish sentences through the language argument
 
         Arguments:
         ---------
@@ -409,12 +503,18 @@ class FeatureEngineering:
 
         """
         # load the embeddings from tensorflow hub
-        embed = hub.load("https://www.kaggle.com/models/google/universal-sentence-encoder/TensorFlow2/universal-sentence-encoder/2")
-        # embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+        if language == 'en':
+            #embed = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
+            embed = hub.load("https://www.kaggle.com/models/google/universal-sentence-encoder/TensorFlow2/universal-sentence-encoder/2")
+        else:
+            embed = SentenceTransformer('hiiamsid/sentence_similarity_spanish_es')
 
         # function to reformat cleaned text for proper embedding
         def embed_text(text):
-            embeddings= embed([text])
+            if language == 'en':
+                embeddings= embed([text])
+            else:
+                embeddings = embed.encode(text)
             embeddings_flat = np.array(embeddings).flatten()
             return embeddings_flat
 
@@ -444,7 +544,6 @@ class FeatureEngineering:
             z_score:
                 Applies Norm.CDF((x-mu)/sigma) transformation. Values correspond to percentages from a normal
                 distribution.
-                #TODO: extend this method to use a more appropriate distribution than normal for certain features
 
         Returns:
         -------
@@ -517,7 +616,8 @@ class FeatureEngineering:
 
         return data
 
-    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int, slang_dict_path: str, language: str, lexpath: str) -> pd.DataFrame:
+    def fit_transform(self, train_data: pd.DataFrame, embedding_file_path: str, embedding_dim: int,
+                      nrc_embedding_file: str, slang_dict_path: str, language: str, lexpath: str) -> pd.DataFrame:
         """Learns all necessary information from the provided training data in order to generate the complete set of
         features to be fed into the classification model. In the fitting process, the training data is also transformed
         into the feature-set expected by the model and returned.
@@ -533,7 +633,7 @@ class FeatureEngineering:
         slang_dict_path
             File path for the Slang dictionary file.
         language
-            The language of the data.
+            Indicates whether we are generating features for English or Spanish
         lexpath
             The path to the Spanish NRCLex .csv file.
 
@@ -545,8 +645,6 @@ class FeatureEngineering:
         """
         # Get the language and lexpath saved
         self.language = language
-        self.lexpath = lexpath
-
 
         # Get the training data, to be used for fitting
         self.train_data = train_data
@@ -559,22 +657,22 @@ class FeatureEngineering:
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'],
                                                   normalization_method='z_score')
 
-
         # Get slang words sentiment scores feature
-        # transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
+        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
 
         # Get NRC (emotion and sentiment word) counts feature
         if language == 'english':
             transformed_data = self._NRC_counts(transformed_data)
         elif language == 'spanish':
             transformed_data = self._Span_NRC_counts(lexpath, transformed_data)
-
+        self.nrc_embeddings = nrc_embedding_file
+        transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=nrc_embedding_file)
 
         # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
+        self.get_universal_sent_embeddings(transformed_data, language)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data, language)
 
         # Get Glove embeddings and aggregate across all words
         self.embedding_file_path = embedding_file_path
@@ -582,7 +680,6 @@ class FeatureEngineering:
         self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, embedding_dim))
-
 
         # Update the fitted flag
         self.fitted = True
@@ -610,25 +707,25 @@ class FeatureEngineering:
         # Ensure feature generating methods have been trained prior to transforming the data
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
-
         # Normalize count features from data cleaning process
         transformed_data = self.normalize_feature(data=data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
 
         # Get slang words sentiment scores feature
-        # transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
+        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path)
 
         # Get NRC values
         if self.language == 'english':
             transformed_data = self._NRC_counts(transformed_data)
         elif self.language == 'spanish':
             transformed_data = self._Span_NRC_counts(self.lexpath, transformed_data)
+        transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=self.nrc_embeddings)
 
         # Get Universal Sentence embeddings
-        self.get_universal_sent_embeddings(transformed_data)
+        self.get_universal_sent_embeddings(transformed_data, language=self.language)
 
         # Get BERTweet Sentence embeddings
-        # self.get_bertweet_embeddings(transformed_data)
+        self.get_bertweet_embeddings(transformed_data, language=self.language)
 
         # Get Glove embeddings and aggregate across all words
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
@@ -644,7 +741,6 @@ if __name__ == '__main__':
     # Imports
     from data_processor import DataProcessor
 
-
     # Load and clean the raw data
     myDP = DataProcessor()
     myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
@@ -655,13 +751,24 @@ if __name__ == '__main__':
 
     # Fit
     train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
-                                embedding_dim=25)
+                                embedding_dim=25, nrc_embedding_file='data/glove.twitter.27B.25d.txt',
+                                slang_dict_path='data/SlangSD.txt', language='en')
     # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
     # local machine to run this portion of the system.
 
     # Transform
     val_df = myFE.transform(myDP.processed_data['validation'])
 
-    # View a sample of the results
-    train_df.head()
-    val_df.head()
+    # Save results
+    import pickle as pkl
+    dir_path = '../data/processed_data/D4'
+
+    # Pickle the pre-processed training data to load in future runs
+    train_data_file = f"{dir_path}/train_df.pkl"
+    with open(train_data_file, 'wb') as f:
+        pkl.dump(train_df, f)
+
+    # Pickle the pre-processed validation data to load in future runs
+    val_data_file = f"{dir_path}/val_df.pkl"
+    with open(val_data_file, 'wb') as f:
+        pkl.dump(val_df, f)

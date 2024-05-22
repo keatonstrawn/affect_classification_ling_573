@@ -100,7 +100,7 @@ def main(config):
                                     embedding_file_path=config['model']['feature_engineering']['embedding_path'],
                                     embedding_dim=config['model']['feature_engineering']['embedding_dim'],
                                     slang_dict_path=config['model']['feature_engineering']['slang_dict_path'],
-                                    language=input_tsv_files['language'],
+                                    language=config['document_processing']['input_tsv_files']['language'],
                                     lexpath=config['model']['feature_engineering']['span_NRC_path'])
 
         # Transform
@@ -163,11 +163,11 @@ def main(config):
                                 features=config['model']['classification']['params']['features'],
                                 embedding_features=config['model']['classification']['params']['embedding_features'])
 
-    train_pred.to_csv("outputs/trained_data.csv")
+    # train_pred.to_csv("outputs/trained_data.csv")
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
 
-    val_pred.to_csv("outputs/classified_val_data.csv")
+    # val_pred.to_csv("outputs/classified_val_data.csv")
     # create evaluation files based on val_pred
     make_eval_files(val_pred, 
                     input_tsv_files['language'], 
