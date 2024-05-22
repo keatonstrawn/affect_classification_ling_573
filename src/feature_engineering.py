@@ -280,7 +280,7 @@ class FeatureEngineering:
         elif embedding_type == '2':
 
             # different form of tokenizing
-            input_ids = torch.tensor([tokenizer.encode(tweet, padding=True, truncation=True)])
+            input_ids = torch.tensor([tokenizer.encode(tweet, padding=True, truncation=True, max_length=130)])
             with torch.no_grad():
                 outputs = model(input_ids)
 
@@ -310,7 +310,8 @@ class FeatureEngineering:
             # Typically, you may want to use the embeddings of the [CLS] token (first token) for each sequence
             embeddings = embeddings[:, 0, :]
             embeddings = embeddings.numpy()
-            embeddings = embeddings.tolist()
+            embeddings = embeddings.flatten()
+            #embeddings = embeddings.tolist()
 
         return embeddings
 
@@ -350,21 +351,29 @@ class FeatureEngineering:
         Nothing
 
         """
-        if language == 'en':
-            # load tokenizer and model
-            model = AutoModel.from_pretrained("vinai/bertweet-base")
-            tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
-            # get the embeddings for each row and save to a new column in the dataframe
-            df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
-                                                                                                      '2',
-                                                                                                      tokenizer))
-        else:
-            tokenizer = AutoTokenizer.from_pretrained('Twitter/twhin-bert-base')
-            model = AutoModel.from_pretrained('Twitter/twhin-bert-base')
-            # get the embeddings for each row and save to a new column in the dataframe
-            df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
-                                                                                                      '4',
-                                                                                                      tokenizer))
+        # # OLD METHOD REMOVED
+        # if language == 'en':
+        #     # load tokenizer and model
+        #     model = AutoModel.from_pretrained("vinai/bertweet-base")
+        #     tokenizer = AutoTokenizer.from_pretrained("vinai/bertweet-base", use_fast=False)
+        #     # get the embeddings for each row and save to a new column in the dataframe
+        #     df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+        #                                                                                               '2',
+        #                                                                                               tokenizer))
+        # else:
+        #     tokenizer = AutoTokenizer.from_pretrained('Twitter/twhin-bert-base')
+        #     model = AutoModel.from_pretrained('Twitter/twhin-bert-base')
+        #     # get the embeddings for each row and save to a new column in the dataframe
+        #     df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+        #                                                                                               '4',
+        #                                                                                               tokenizer))
+
+        tokenizer = AutoTokenizer.from_pretrained('Twitter/twhin-bert-base')
+        model = AutoModel.from_pretrained('Twitter/twhin-bert-base')
+        # get the embeddings for each row and save to a new column in the dataframe
+        df['BERTweet_embeddings'] = df['raw_text'].apply(lambda tweet: self.embeddings_helper(tweet, model,
+                                                                                              '4',
+                                                                                              tokenizer))
 
     def get_glove_embeddings(self, df: pd.DataFrame, embedding_file_path: str):
         """Function to get GloVe embeddings from a dataframe and automatically add them to this dataframe. These
@@ -453,7 +462,6 @@ class FeatureEngineering:
             z_score:
                 Applies Norm.CDF((x-mu)/sigma) transformation. Values correspond to percentages from a normal
                 distribution.
-                #TODO: extend this method to use a more appropriate distribution than normal for certain features
 
         Returns:
         -------
@@ -614,7 +622,6 @@ class FeatureEngineering:
         # Ensure feature generating methods have been trained prior to transforming the data
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
-
         # Normalize count features from data cleaning process
         transformed_data = self.normalize_feature(data=data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
@@ -657,13 +664,12 @@ if __name__ == '__main__':
     # Fit
     train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='data/glove.twitter.27B.25d.txt',
                                 embedding_dim=25, nrc_embedding_file='data/glove.twitter.27B.25d.txt',
-                                slang_dict_path='data/SlangSD.txt')
+                                slang_dict_path='data/SlangSD.txt', language='en')
     # Note that the embedding file is too large to add to the repository, so you will need to specify the path on your
     # local machine to run this portion of the system.
 
     # Transform
     val_df = myFE.transform(myDP.processed_data['validation'])
-
 
     # Save results
     import pickle as pkl
