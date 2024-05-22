@@ -23,6 +23,7 @@ dependencies:
     - pyspellchecker
     - translate
     - googletrans
+    - sentence_transformers
 
 
 

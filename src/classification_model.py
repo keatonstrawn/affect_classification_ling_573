@@ -64,8 +64,8 @@ class ClassificationModel:
         # TODO: create necessary attributes for other models as they are added
 
     def _target_processing(self, data):
-        """Processes the target categories into a uniform forman. So rather than having e.g. 3 binary categories for HS,
-        TR and AG (with dependencies) we have a single 5 category problem (HS, HS+TR, HS+AG, HS+TR+AG, None).
+        """Processes the target categories into a uniform format. So rather than having e.g. 3 binary categories for HS,
+        TR and AG (with dependencies) we have a single 5 category problem (HS, HS+TR, HS+AG, HS+TR+AG, NotHS).
 
         Arguments:
         ----------
@@ -105,7 +105,7 @@ class ClassificationModel:
                 # Remove trailing +, if it exists
                 new_category = new_category.rstrip('+')
             else:
-                new_category = 'None'
+                new_category = 'NotHS'
             target_categories.append(new_category)
 
         data['Target'] = target_categories
