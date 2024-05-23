@@ -256,7 +256,8 @@ class FeatureEngineering:
 
         """
         # add ten columns to the end of the dataframe, representing the eight emotional dimensions of NRC
-        emotions = ['negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
+        emotions = ['negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise',
+                    'trust']
         for emotion in emotions:
             data[emotion] = 0
 
