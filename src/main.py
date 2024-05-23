@@ -102,7 +102,7 @@ def main(config):
                                     slang_dict_path=config['model']['feature_engineering']['slang_dict_path'],
                                     lexpath=config['model']['feature_engineering']['span_NRC_path'],
                                     load_translations=config['model']['feature_engineering']['load_translations'],
-                                    trans_path=config['model']['feature_engineering']['trans_path'])
+                                    trans_path=config['model']['feature_engineering']['trans_path'],
                                     stop_words_path=config['model']['feature_engineering']['stop_words_path'],
                                     language=config['document_processing']['input_tsv_files']['language'],
                                     nrc_embedding_file=config['model']['feature_engineering']['nrc_embedding_file'])
