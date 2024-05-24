@@ -11,6 +11,7 @@ import scipy.stats as st
 import tensorflow_hub as hub
 import csv
 import re
+import datetime
 
 from src.nrc_lex_classifier import ExtendedNRCLex
 
@@ -734,22 +735,34 @@ class FeatureEngineering:
         # Save the stop words list path for use in the model
         self.stop_words_path = stop_words_path
 
-        # Save language
-        self.language = language
-
         # Normalize count features from data cleaning process
+        t0 = datetime.datetime.now()
+        print(f'1/7 Normalizing count features: start time = {t0}')
         transformed_data = self.normalize_feature(data=train_data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'],
                                                   normalization_method='z_score')
+        t1 = datetime.datetime.now()
+        print(f'Finished normalizing count features. Time: {t1}')
 
         # Get slang words sentiment scores feature
+        print('2/7 Getting slang scores')
         transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path, self.stop_words_path)
+        t1 = datetime.datetime.now()
+        print(f'Finished getting slang scores. Time: {t1}')
 
         # Get NRC (emotion and sentiment word) counts feature
         if language == 'english':
+            print('3/7 Getting NRC counts')
             transformed_data = self._NRC_counts(transformed_data)
+            t1 = datetime.datetime.now()
+
+            print(f'Finished getting NRC counts. Time: {t1}')
+            print('4/7 Getting NRC extension values')
+            t0 = datetime.datetime.now()
             self.nrc_embeddings = nrc_embedding_file
             transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=nrc_embedding_file)
+            t1 = datetime.datetime.now()
+            print(f'Finished getting NRC extension values. Time: {t1}')
 
         elif language == 'spanish':
 
@@ -766,17 +779,26 @@ class FeatureEngineering:
             transformed_data = self._Span_NRC_counts(lexpath, transformed_data)
 
         # Get Universal Sentence embeddings
+        print('5/7 Getting universal sentence embeddings')
         self.get_universal_sent_embeddings(transformed_data, language)
+        t1 = datetime.datetime.now()
+        print(f'Finished getting universal sentence embeddings. Time: {t1}')
 
         # Get BERTweet Sentence embeddings
+        print('6/7 Getting BERTweet sentence embeddings')
         self.get_bertweet_embeddings(transformed_data, language)
+        t1 = datetime.datetime.now()
+        print(f'Finished getting BERTweet sentence embeddings. Time: {t1}')
 
         # Get Glove embeddings and aggregate across all words
+        print('7/7 Getting GloVe embeddings')
         self.embedding_file_path = embedding_file_path
         self.embedding_dim = embedding_dim
         self.get_glove_embeddings(transformed_data, embedding_file_path=embedding_file_path)
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, embedding_dim))
+        t1 = datetime.datetime.now()
+        print(f'Finished getting GloVe embeddings. Time: {t1}')
 
         # Update the fitted flag
         self.fitted = True
@@ -866,7 +888,7 @@ if __name__ == '__main__':
 
     # Save results
     import pickle as pkl
-    dir_path = '../data/processed_data/D4'
+    dir_path = '../data/processed_data/OLD-D4'
 
     # Pickle the pre-processed training data to load in future runs
     train_data_file = f"{dir_path}/train_df.pkl"

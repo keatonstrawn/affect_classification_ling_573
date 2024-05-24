@@ -1163,31 +1163,76 @@ class ClassificationModel:
 
 if __name__ == '__main__':
 
+    # # Imports
+    # from src.data_processor import DataProcessor
+    # from src.feature_engineering import FeatureEngineering
+    #
+    # # Load and clean the raw data
+    # myDP = DataProcessor()
+    # myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
+    # myDP.clean_data()
+    #
+    # # Generate the features for model training
+    # myFE = FeatureEngineering()
+    # train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
+    #                               embedding_dim=25)
+    # val_df = myFE.transform(myDP.processed_data['validation'])
+
+    #TEMPORARY - REMOVE AFTER TESTING
     # Imports
-    from src.data_processor import DataProcessor
     from src.feature_engineering import FeatureEngineering
-
-    # Load and clean the raw data
-    myDP = DataProcessor()
-    myDP.load_data(language='english', filepath='../data')  # May need to change to './data' or 'data' if on a Mac
-    myDP.clean_data()
-
-    # Generate the features for model training
-    myFE = FeatureEngineering()
-    train_df = myFE.fit_transform(myDP.processed_data['train'], embedding_file_path='../data/glove.twitter.27B.25d.txt',
-                                  embedding_dim=25)
-    val_df = myFE.transform(myDP.processed_data['validation'])
+    from src.classification_model import ClassificationModel
+    import pickle as pkl
+    import datetime
+    # #
+    # # Unpickle the pre-processed training data to load in future runs
+    # train_data_file = 'data/processed_data/OLD-D4/dp_train.pkl'
+    # with open(train_data_file, 'rb') as f:
+    #     train_df = pkl.load(f)
+    # #
+    # # Unpickle the pre-processed validation data to load in future runs
+    # val_data_file = 'data/processed_data/OLD-D4/dp_val.pkl'
+    # with open(train_data_file, 'rb') as f:
+    #     val_df = pkl.load(f)
+    # #
+    # # Generate the features for model training
+    # myFE = FeatureEngineering()
+    # # TODO: add more args - look at method definition
+    # train_df = myFE.fit_transform(train_data=train_df,
+    #                               embedding_file_path='data/glove.twitter.27B.25d.txt',
+    #                               embedding_dim=25,
+    #                               nrc_embedding_file='data/glove.twitter.27B.25d.txt',
+    #                               slang_dict_path='data/SlangSD.txt',
+    #                               stop_words_path='data/stopwords.txt',
+    #                               language='english',
+    #                               lexpath='/data/lexico_nrc.csv',
+    #                               load_translations=True,
+    #                               trans_path='data/translations.csv')
+    # val_df = myFE.transform(val_df)
+    # Unpickle the pre-processed training data to load in future runs
+    train_data_file = '/Users/lindsayskinner/Documents/school/CLMS/573/data/D4/train_df.pkl'
+    with open(train_data_file, 'rb') as f:
+        train_df = pkl.load(f)
+    #
+    # Unpickle the pre-processed validation data to load in future runs
+    val_data_file = '/Users/lindsayskinner/Documents/school/CLMS/573/data/D4/val_df.pkl'
+    with open(train_data_file, 'rb') as f:
+        val_df = pkl.load(f)
 
     # Instantiate the model
-    myClassifier = ClassificationModel('random_forest')
+    myClassifier = ClassificationModel('logistic_regression')
 
     # Train the model
     features = ['percent_capitals', '!_count_normalized', '?_count_normalized', '$_count_normalized',
-                '*_count_normalized', 'negative', 'positive', 'anger', 'anticipation', 'disgust', 'fear', 'joy',
-                'sadness', 'surprise', 'trust']
+                '*_count_normalized', 'negative_ext', 'positive_ext', 'anger_ext', 'anticipation_ext', 'disgust_ext',
+                'fear_ext', 'joy_ext', 'sadness_ext', 'surprise_ext', 'trust_ext', 'slangscore']
+    embedding_features = ['Universal_Sentence_Encoder_embeddings', 'BERTweet_embeddings', 'Aggregate_embeddings']
     train_pred = myClassifier.fit(train_df,
                                   tasks=['hate_speech_detection', 'target_or_general', 'aggression_detection'],
-                                  keep_training_data=False, features=features)
+                                  prediction_target='together',
+                                  keep_training_data=False,
+                                  features=features,
+                                  embedding_features=embedding_features)
 
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
@@ -1195,3 +1240,13 @@ if __name__ == '__main__':
     # View a sample of the results
     train_df.head()
     val_df.head()
+
+
+    import pickle as pkl
+    file_path = '/Users/lindsayskinner/Documents/school/CLMS/573/data/D4/train_df.pkl'
+    with open(file_path, 'wb') as f:
+        pkl.dump(train_df, f)
+    #
+    file_path = '/Users/lindsayskinner/Documents/school/CLMS/573/data/D4/val_df.pkl'
+    with open(file_path, 'wb') as f:
+        pkl.dump(val_df, f)
