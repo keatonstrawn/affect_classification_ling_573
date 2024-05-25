@@ -352,7 +352,7 @@ class DataProcessor:
             processed_val_data = pd.concat([processed_val_data, en_processed_val], axis=0)
 
             # test data
-            en_raw_test = raw_train[raw_test['language'] == 'en']
+            en_raw_test = raw_test[raw_test['language'] == 'en']
             en_processed_test = en_raw_test['text'].apply(self.clean_tweet, language='en')
             en_test_ind = en_processed_test.index
             en_processed_test = pd.concat(en_processed_test.tolist())

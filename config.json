@@ -41,7 +41,7 @@
                     "kernel": "poly", "degree": 3, "C": 1.0, "coef0": 0, "probability": true
                   },
                   "logistic_regression_params": {
-                    "penalty": "l2", "random_state": 42, "solver": "sag", "max_iter": 1000
+                    "penalty": "l2", "random_state": 42, "solver": "sag", "max_iter": 1000, "class_weight": null
                   },
                   "ensembler_lr_params": {
                     "penalty": "l2", "random_state": 42, "solver": "sag", "max_iter": 1000

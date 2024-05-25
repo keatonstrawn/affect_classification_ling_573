@@ -484,11 +484,14 @@ class ClassificationModel:
             y_train = train_data[task_cols].values
 
             # Train logistic regression
-            clf = LogisticRegression(penalty=self.model_params['penalty'],  # 'l2'
-                                     random_state=self.model_params['random_state'],  # 42
-                                     solver=self.model_params['solver'],  # 'sag'
-                                     multi_class='ovr',
-                                     max_iter=self.model_params['max_iter'])  # 1000
+            clf = LogisticRegression(
+                penalty=self.model_params['penalty'],  # 'l2'
+                random_state=self.model_params['random_state'],  # 42
+                solver=self.model_params['solver'],  # 'sag'
+                multi_class='ovr',
+                max_iter=self.model_params['max_iter'],  # 1000
+                class_weight=self.model_params['class_weight']
+            )
             clf.fit(x_train, y_train)
 
             # Save the fit model
@@ -626,11 +629,13 @@ class ClassificationModel:
 
         # SVM
         # Train SVM model
-        clf_svm = SVC(kernel=self.model_params['SVM']['kernel'],
-                  degree=self.model_params['SVM']['degree'],
-                  C=self.model_params['SVM']['C'],
-                  coef0=self.model_params['SVM']['coef0'],
-                  probability=True)
+        clf_svm = SVC(
+            kernel=self.model_params['svm_params']['kernel'],
+            degree=self.model_params['svm_params']['degree'],
+            C=self.model_params['svm_params']['C'],
+            coef0=self.model_params['svm_params']['coef0'],
+            probability=True
+        )
         clf_svm.fit(x_train, y_train)
         # Save the fit model
         self.ensembler_models['SVM'] = clf_svm
@@ -647,17 +652,19 @@ class ClassificationModel:
 
         # Random Forest
         # Train the RF model
-        clf_rf = RandomForestClassifier(n_estimators=self.model_params['random_forest']['n_estimators'],
-                                     criterion=self.model_params['random_forest']['criterion'],
-                                     max_depth=self.model_params['random_forest']['max_depth'],
-                                     min_samples_split=self.model_params['random_forest']['min_samples_split'],
-                                     min_samples_leaf=self.model_params['random_forest']['min_samples_leaf'],
-                                     max_features=self.model_params['random_forest']['max_features'],
-                                     bootstrap=self.model_params['random_forest']['bootstrap'],
-                                     n_jobs=self.model_params['random_forest']['n_jobs'],
-                                     random_state=self.model_params['random_forest']['random_state'],
-                                     class_weight=self.model_params['random_forest']['class_weight'],
-                                     max_samples=self.model_params['random_forest']['max_samples'])
+        clf_rf = RandomForestClassifier(
+            n_estimators=self.model_params['random_forest_params']['n_estimators'],
+            criterion=self.model_params['random_forest_params']['criterion'],
+            max_depth=self.model_params['random_forest_params']['max_depth'],
+            min_samples_split=self.model_params['random_forest_params']['min_samples_split'],
+            min_samples_leaf=self.model_params['random_forest_params']['min_samples_leaf'],
+            max_features=self.model_params['random_forest_params']['max_features'],
+            bootstrap=self.model_params['random_forest_params']['bootstrap'],
+            n_jobs=self.model_params['random_forest_params']['n_jobs'],
+            random_state=self.model_params['random_forest_params']['random_state'],
+            class_weight=self.model_params['random_forest_params']['class_weight'],
+            max_samples=self.model_params['random_forest_params']['max_samples']
+        )
         clf_rf.fit(x_train, y_train)
         # Save the fit model
         self.ensembler_models['random_forest_classifier'] = clf_rf
@@ -674,11 +681,14 @@ class ClassificationModel:
 
         # Logistic Regression
         # Train the LR model
-        clf_lr = LogisticRegression(penalty=self.model_params['logistic_regression']['penalty'],
-                                 random_state=self.model_params['logistic_regression']['random_state'],
-                                 solver=self.model_params['logistic_regression']['solver'],
-                                 multi_class='multinomial',
-                                 max_iter=self.model_params['logistic_regression']['max_iter'])
+        clf_lr = LogisticRegression(
+            penalty=self.model_params['logistic_regression_params']['penalty'],
+            random_state=self.model_params['logistic_regression_params']['random_state'],
+            solver=self.model_params['logistic_regression_params']['solver'],
+            multi_class='multinomial',
+            max_iter=self.model_params['logistic_regression_params']['max_iter'],
+            class_weight=self.model_params['logistic_regression_params']['class_weight']
+        )
         clf_lr.fit(x_train, y_train)
         # Save the fit model
         self.ensembler_models['logistic_regression_classifier'] = clf_lr
@@ -707,11 +717,11 @@ class ClassificationModel:
 
         if ensembler == 'LR':
             # Train the LR Ensembler
-            clf = LogisticRegression(penalty=self.model_params['ensembler']['penalty'],
-                                        random_state=self.model_params['ensembler']['random_state'],
-                                        solver=self.model_params['ensembler']['solver'],
+            clf = LogisticRegression(penalty=self.model_params['ensembler_lr_params']['penalty'],
+                                        random_state=self.model_params['ensembler_lr_params']['random_state'],
+                                        solver=self.model_params['ensembler_lr_params']['solver'],
                                         multi_class='multinomial',
-                                        max_iter=self.model_params['ensembler']['max_iter'])
+                                        max_iter=self.model_params['ensembler_lr_params']['max_iter'])
             clf.fit(x_ensemble_train, y_ensemble_train)
             # Save the fit model
             self.ensembler_models['ensembler'] = clf
@@ -720,18 +730,18 @@ class ClassificationModel:
 
         elif ensembler == 'DT':
             # Train the Decision Tree Ensembler
-            clf = DecisionTreeClassifier(criterion=self.model_params['ensembler']['criterion'],
-                                         splitter=self.model_params['ensembler']['splitter'],
+            clf = DecisionTreeClassifier(criterion=self.model_params['ensembler_dt_params']['criterion'],
+                                         splitter=self.model_params['ensembler_dt_params']['splitter'],
                                          max_depth=None,
                                          min_samples_split=2,
                                          min_samples_leaf=1,
                                          min_weight_fraction_leaf=0.0,
-                                         max_features=self.model_params['ensembler']['max_features'],
-                                         random_state=self.model_params['ensembler']['random_state'],
+                                         max_features=self.model_params['ensembler_dt_params']['max_features'],
+                                         random_state=self.model_params['ensembler_dt_params']['random_state'],
                                          max_leaf_nodes=None,
                                          min_impurity_decrease=0.0,
-                                         class_weight=self.model_params['ensembler']['class_weight'],
-                                         ccp_alpha=self.model_params['ensembler']['ccp_alpha'])
+                                         class_weight=self.model_params['ensembler_dt_params']['class_weight'],
+                                         ccp_alpha=self.model_params['ensembler_dt_params']['ccp_alpha'])
             clf.fit(x_ensemble_train, y_ensemble_train)
             # Save the fit model
             self.ensembler_models['ensembler'] = clf
@@ -849,8 +859,8 @@ class ClassificationModel:
 
             # Replace specified defaults and save the provided model parameters
             if parameters is not None:
-                for p in parameters.keys():
-                    self.model_params[p] = parameters[p]
+                for p in parameters['random_forest_params'].keys():
+                    self.model_params[p] = parameters['random_forest_params'][p]
 
             # Save the training data
             if keep_training_data:
@@ -872,8 +882,8 @@ class ClassificationModel:
 
             # Replace specified defaults and save the provided model parameters
             if parameters is not None:
-                for p in parameters.keys():
-                    self.model_params[p] = parameters[p]
+                for p in parameters['svm_params'].keys():
+                    self.model_params[p] = parameters['svm_params'][p]
 
             # train the classifiers
             pred_df = self._fit_svm_model(train_data, features, embedding_features)
@@ -886,12 +896,13 @@ class ClassificationModel:
 
             # Save the default model parameters
             # TODO: NEED TO DO SOME HYPERPARAMETER TUNING FOR THIS MODEL
-            self.model_params = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag', 'max_iter': 1000}
+            self.model_params = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag', 'max_iter': 1000,
+                                 'class_weight': None}
 
             # Replace specified defaults and save the provided model parameters
             if parameters is not None:
-                for p in parameters.keys():
-                    self.model_params[p] = parameters[p]
+                for p in parameters['logistic_regression_params'].keys():
+                    self.model_params[p] = parameters['logistic_regression_params'][p]
 
             # train the classifiers
             pred_df = self._fit_logistic_regression_model(train_data, features, embedding_features)
@@ -906,13 +917,13 @@ class ClassificationModel:
             # Save the default model parameters
             # TODO: NEED TO DO SOME HYPERPARAMETER TUNING FOR THIS MODEL
             self.model_params = {}
-            self.model_params['SVM'] = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
-            self.model_params['random_forest'] = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
+            self.model_params['svm_params'] = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+            self.model_params['random_forest_params'] = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
                 'min_samples_split': 0.1, 'min_samples_leaf': 3, 'max_features': 'sqrt', 'bootstrap': True,
                 'n_jobs': None, 'random_state': 42, 'class_weight': 'balanced_subsample', 'max_samples': 0.2}
-            self.model_params['logistic_regression'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
-                'max_iter': 1000}
-            self.model_params['ensembler'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
+            self.model_params['logistic_regression_params'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
+                'max_iter': 1000, 'class_weight': None}
+            self.model_params['ensembler_lr_params'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
                 'max_iter': 1000}
 
             # Replace specified defaults and save the provided model parameters
@@ -934,13 +945,13 @@ class ClassificationModel:
             # Save the default model parameters
             # TODO: NEED TO DO SOME HYPERPARAMETER TUNING FOR THIS MODEL
             self.model_params = {}
-            self.model_params['SVM'] = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
-            self.model_params['random_forest'] = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
+            self.model_params['svm_params'] = {'kernel': 'poly', 'degree': 3, 'C': 1.0, 'coef0': 0, 'probability': True}
+            self.model_params['random_forest_params'] = {'n_estimators': 400, 'criterion': 'entropy', 'max_depth': None,
                 'min_samples_split': 0.1, 'min_samples_leaf': 3, 'max_features': 'sqrt', 'bootstrap': True,
                 'n_jobs': None, 'random_state': 42, 'class_weight': 'balanced_subsample', 'max_samples': 0.2}
-            self.model_params['logistic_regression'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
+            self.model_params['logistic_regression_params'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
                 'max_iter': 1000}
-            self.model_params['ensembler'] = {'criterion': 'gini', 'splitter': 'best', 'max_features': 'sqrt',
+            self.model_params['ensembler_dt_params'] = {'criterion': 'gini', 'splitter': 'best', 'max_features': 'sqrt',
                 'random_state': 42, 'class_weight': 'balanced', 'ccp_alpha': 0.0}
 
             # Replace specified defaults and save the provided model parameters
