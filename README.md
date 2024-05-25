@@ -38,7 +38,7 @@ To provide the model with GloVe embedding data, follow the steps below:
 3. Once downloaded, unzip this file
 4. Add the file "glove.twitter.27B.25d.txt" to the subdirectory `./data/`
 
-
+Similarly, the size of the pickled dataframes are also too large to store on the GitHub repository. Please email to request them (or if you're an instructor, we will send them to you for the deliverable). Please add the pickled files to the subdirectory `./data/processed_data/`
 
 ## Components
 
@@ -52,6 +52,11 @@ To provide the model with GloVe embedding data, follow the steps below:
   - File: `src/feature_engineering.py`
   - This file contains methods for generating features for each tweet, including emotional lexicon lookups, embeddings, and normalization.
 
+- nrc_lex_extension
+
+  - File: `src/nrc_lex_extension.py`
+  - This file contains the methods for applying emotion scores for each word in an embedding model, therefore extending the range of the nrc_lex feature.
+     
 - Classification
 
   - File: `src/classification_model.py`
@@ -82,7 +87,7 @@ To run the system from Condor:
    ```
 5.   Submit the command file to Condor:
    ```bash
-   condor_submit D3.cmd
+   condor_submit D4.cmd
    ```
 6.   Check system progress:
    ```bash
@@ -90,11 +95,11 @@ To run the system from Condor:
    ```
 7.   To see system performance evaluation, use the following command to navigate to the system scores directory from the home directory:
    ```bash
-   cd ./D3
+   cd ./D4
    ```
 8.   To see the system's prediction files, use the following command to navigate to the evaluation data directory from the home directory:
    ```bash
-   cd ./outputs/D3/res
+   cd ./outputs/D4/res
    ```
 9.   To see the system's score file, use the following command to navigate to the results directory from the home directory:
 10.   ```bash
