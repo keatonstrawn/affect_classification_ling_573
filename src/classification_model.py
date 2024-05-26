@@ -925,6 +925,7 @@ class ClassificationModel:
                 'max_iter': 1000, 'class_weight': None}
             self.model_params['ensembler_lr_params'] = {'penalty': 'l2', 'random_state': 42, 'solver': 'sag',
                 'max_iter': 1000}
+            self.model_params['ensembler_dt_params'] = {}
 
             # Replace specified defaults and save the provided model parameters
             if parameters is not None:
@@ -953,6 +954,7 @@ class ClassificationModel:
                 'max_iter': 1000}
             self.model_params['ensembler_dt_params'] = {'criterion': 'gini', 'splitter': 'best', 'max_features': 'sqrt',
                 'random_state': 42, 'class_weight': 'balanced', 'ccp_alpha': 0.0}
+            self.model_params['ensembler_lr_params'] = {}
 
             # Replace specified defaults and save the provided model parameters
             if parameters is not None:
