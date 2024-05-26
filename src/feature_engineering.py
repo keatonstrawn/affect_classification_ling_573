@@ -854,7 +854,8 @@ class FeatureEngineering:
                                                   normalization_method='z_score')
 
         # Get slang words sentiment scores feature
-        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path, self.stop_words_path)
+        if language == 'english':
+            transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path, self.stop_words_path)
 
         # Get Spanish words sentiment scores feature
         if language == 'spanish':
@@ -926,7 +927,8 @@ class FeatureEngineering:
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
 
         # Get slang words sentiment scores feature
-        transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path, self.stop_words_path)
+        if self.language == 'english':
+            transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path, self.stop_words_path)
 
         # Get Spanish words sentiment scores feature
         if self.language == 'spanish':
