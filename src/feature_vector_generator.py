@@ -123,7 +123,7 @@ def feature_vector_generator(data: pd.DataFrame,
 
 if __name__ == "__main__":
     # Load data for testing
-    data_file = '../data/processed_data/D4/train_fe_df.pkl'
+    data_file = '../data/processed_data/D4/original_data/train_fe_df.pkl'
     with open(data_file, 'rb') as f:
         data = pkl.load(f)
 

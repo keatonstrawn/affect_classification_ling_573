@@ -4,10 +4,10 @@ import re
 import pandas as pd
 import pickle as pkl
 
-from data_processor import DataProcessor
-from feature_engineering import FeatureEngineering
-from classification_model import ClassificationModel
-from evaluation import Evaluator
+from src.data_processor import DataProcessor
+from src.feature_engineering import FeatureEngineering
+from src.classification_model import ClassificationModel
+from src.evaluation import Evaluator
 
 
 def load_config(config_path):
@@ -109,79 +109,102 @@ def main(config):
                                     nrc_embedding_file=config['model']['feature_engineering']['nrc_embedding_file'])
         # Transform
         val_df = myFE.transform(myDP.processed_data['validation'])
+        test_df = myFE.transform(myDP.processed_data['test'])
 
         # Pickle the pre-processed training data to load in future runs
-        train_data_file = f"{doc_config['processed_data_dir']}/train_df.pkl"
+        train_data_file = f"{doc_config['processed_data_dir']}/train_fe_df.pkl"
         with open(train_data_file, 'wb') as f:
             pkl.dump(train_df, f)
 
         # Pickle the pre-processed validation data to load in future runs
-        val_data_file = f"{doc_config['processed_data_dir']}/val_df.pkl"
+        val_data_file = f"{doc_config['processed_data_dir']}/val_fe_df.pkl"
         with open(val_data_file, 'wb') as f:
             pkl.dump(val_df, f)
+
+        # Pickle the pre-processed validation data to load in future runs
+        test_data_file = f"{doc_config['processed_data_dir']}/test_fe_df.pkl"
+        with open(test_data_file, 'wb') as f:
+            pkl.dump(test_df, f)
 
     # Load the data, if specified
     elif doc_config['save_or_load'] == 'load':
 
         # Unpickle the pre-processed training data
-        train_data_file = f"{doc_config['processed_data_dir']}/train_df.pkl"
+        train_data_file = f"{doc_config['processed_data_dir']}/train_fe_df.pkl"
         with open(train_data_file, 'rb') as f:
             train_df = pkl.load(f)
 
         # Unpickle the pre-processed validation data
-        val_data_file = f"{doc_config['processed_data_dir']}/val_df.pkl"
+        val_data_file = f"{doc_config['processed_data_dir']}/val_fe_df.pkl"
         with open(val_data_file, 'rb') as f:
             val_df = pkl.load(f)
+
+        # Unpickle the pre-processed validation data
+        test_data_file = f"{doc_config['processed_data_dir']}/test_fe_df.pkl"
+        with open(test_data_file, 'rb') as f:
+            test_df = pkl.load(f)
 
     # Instantiate the model
     myClassifier = ClassificationModel(config['model']['classification']['approach'])
     
-    # Choose parameters based on classification approach
-    if config['model']['classification']['approach'] == "random_forest":
-        parameters = parameters=config['model']['classification']['params']['model_params']['random_forest_params']
-    elif config['model']['classification']['approach'] == 'svm':
-        parameters=config['model']['classification']['params']['model_params']['svm_params']
-    elif config['model']['classification']['approach'] == 'logistic_regression':
-        parameters = config['model']['classification']['params']['model_params']['logistic_regression_params']
-    elif config['model']['classification']['approach'] == 'ensembler_lr':
-        parameters = {
-            'SVM': config['model']['classification']['params']['model_params']['svm_params'],
-            'random_forest': config['model']['classification']['params']['model_params']['random_forest_params'],
-            'logistic_regression': config['model']['classification']['params']['model_params']['logistic_regression_params'],
-            'ensembler': config['model']['classification']['params']['model_params']['ensembler_lr_params']
-        }
-    else:  # config['model']['classification']['approach'] == 'ensembler_dt':
-        parameters = {
-            'SVM': config['model']['classification']['params']['model_params']['svm_params'],
-            'random_forest': config['model']['classification']['params']['model_params']['random_forest_params'],
-            'logistic_regression': config['model']['classification']['params']['model_params']['logistic_regression_params'],
-            'ensembler': config['model']['classification']['params']['model_params']['ensembler_dt_params']
-        }
+    # # Choose parameters based on classification approach
+    # if config['model']['classification']['approach'] == "random_forest":
+    #     parameters = parameters=config['model']['classification']['params']['model_params']['random_forest_params']
+    # elif config['model']['classification']['approach'] == 'svm':
+    #     parameters=config['model']['classification']['params']['model_params']['svm_params']
+    # elif config['model']['classification']['approach'] == 'logistic_regression':
+    #     parameters = config['model']['classification']['params']['model_params']['logistic_regression_params']
+    # elif config['model']['classification']['approach'] == 'ensembler_lr':
+    #     parameters = {
+    #         'SVM': config['model']['classification']['params']['model_params']['svm_params'],
+    #         'random_forest': config['model']['classification']['params']['model_params']['random_forest_params'],
+    #         'logistic_regression': config['model']['classification']['params']['model_params']['logistic_regression_params'],
+    #         'ensembler': config['model']['classification']['params']['model_params']['ensembler_lr_params']
+    #     }
+    # else:  # config['model']['classification']['approach'] == 'ensembler_dt':
+    #     parameters = {
+    #         'SVM': config['model']['classification']['params']['model_params']['svm_params'],
+    #         'random_forest': config['model']['classification']['params']['model_params']['random_forest_params'],
+    #         'logistic_regression': config['model']['classification']['params']['model_params']['logistic_regression_params'],
+    #         'ensembler': config['model']['classification']['params']['model_params']['ensembler_dt_params']
+    #     }
 
     # Train the model
     train_pred = myClassifier.fit(train_df,
                                 tasks=config['model']['classification']['params']['tasks'],
                                 prediction_target=config['model']['classification']['params']['prediction_target'],
                                 keep_training_data=config['model']['classification']['params']['keep_training_data'],
-                                parameters=parameters,
+                                parameters=config['model']['classification']['params']['model_params'],
                                 features=config['model']['classification']['params']['features'],
                                 embedding_features=config['model']['classification']['params']['embedding_features'])
 
     # train_pred.to_csv("outputs/trained_data.csv")
     # Run the model on the validation data
     val_pred = myClassifier.predict(val_df)
+    test_pred = myClassifier.predict(test_df)
 
     # val_pred.to_csv("outputs/classified_val_data.csv")
     # create evaluation files based on val_pred
     make_eval_files(val_pred, 
                     input_tsv_files['language'], 
-                    config['evaluation']['goldpath'],
-                    config['evaluation']['predpath'])
-
+                    config['evaluation']['development']['goldpath'],
+                    config['evaluation']['development']['predpath'])
     # Instantiate the evaluator and run it
-    myEvaluator = Evaluator(config['evaluation']['input_directory'], config['evaluation']['output_directory'],
-                            config['evaluation']['output_file'])
-    myEvaluator.main()
+    valEvaluator = Evaluator(config['evaluation']['development']['input_directory'],
+                            config['evaluation']['development']['output_directory'],
+                            config['evaluation']['development']['output_file'])
+    valEvaluator.main()
+
+    # create evaluation files based on val_pred
+    make_eval_files(test_pred,
+                    input_tsv_files['language'],
+                    config['evaluation']['test']['goldpath'],
+                    config['evaluation']['test']['predpath'])
+    # Instantiate the evaluator and run it
+    valEvaluator = Evaluator(config['evaluation']['test']['input_directory'],
+                            config['evaluation']['test']['output_directory'],
+                            config['evaluation']['test']['output_file'])
+    valEvaluator.main()
 
 
 if __name__ == "__main__":

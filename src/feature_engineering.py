@@ -14,7 +14,7 @@ import re
 import datetime
 
 # May need to convert to src.nrc_lex_classifier
-from nrc_lex_classifier import ExtendedNRCLex
+from src.nrc_lex_classifier import ExtendedNRCLex
 
 from nrclex import NRCLex
 # from googletrans import Translator
@@ -945,10 +945,12 @@ class FeatureEngineering:
         assert self.fitted, 'Must apply fit_transform to training data before other datasets can be transformed.'
 
         # Normalize count features from data cleaning process
+        print('1/7 Normalizing count features')
         transformed_data = self.normalize_feature(data=data,
                                                   feature_columns=['!_count', '?_count', '$_count', '*_count'])
 
         # Get slang words sentiment scores feature
+        print('2/7 Getting slang sentiment')
         if self.language == 'english':
             transformed_data = self.get_slang_score(transformed_data, self.slang_dict_path, self.stop_words_path)
 
@@ -957,6 +959,7 @@ class FeatureEngineering:
             transformed_data = self.get_es_sent_score(transformed_data, self.es_sent_path)
 
         # Get NRC (emotion and sentiment word) counts feature
+        print('3/7 and 4/7 Getting NRC features')
         if self.language == 'english':
             transformed_data = self._NRC_counts(transformed_data)
             transformed_data = self._extended_NRC_counts(transformed_data, embedding_file=self.nrc_embeddings)
@@ -976,12 +979,15 @@ class FeatureEngineering:
             #transformed_data = self._Span_NRC_counts(self.lexpath, transformed_data)
 
         # Get Universal Sentence embeddings
+        print('5/7 Getting universal sentence embeddings')
         self.get_universal_sent_embeddings(transformed_data, language=self.language)
 
         # Get BERTweet Sentence embeddings
+        print('6/7 Getting BERT embeddings')
         self.get_bertweet_embeddings(transformed_data, language=self.language)
 
         # Get Glove embeddings and aggregate across all words
+        print('7/7 Getting GloVe embeddings')
         self.get_glove_embeddings(transformed_data, embedding_file_path=self.embedding_file_path)
         transformed_data['Aggregate_embeddings'] = transformed_data['GloVe_embeddings'].apply(
             lambda x: get_embedding_ave(x, self.embedding_dim))
