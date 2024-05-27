@@ -63,16 +63,16 @@ class DataProcessor:
         if language == 'english':
             if train_file is None: train_file = 'train_en.tsv'
             if validation_file is None: validation_file = 'dev_en.tsv'
-            # if test_file is None: test_file = 'test_en.tsv'
+            if test_file is None: test_file = 'test_en.tsv'
         if language == 'spanish':
             if train_file is None: train_file = 'train_es.tsv'
             if validation_file is None: validation_file = 'dev_es.tsv'
-            # if test_file is None: test_file = 'test_es.tsv'
+            if test_file is None: test_file = 'test_es.tsv'
 
         # Load data from disk
         raw_train_df = pd.read_csv(f'{filepath}/{train_file}', sep='\t', header=0, index_col='id')
         raw_val_df = pd.read_csv(f'{filepath}/{validation_file}', sep='\t', header=0, index_col='id')
-        # raw_test_df = pd.read_csv(f'{filepath}/{test_file}', sep='\t', header=0, index_col='id')
+        raw_test_df = pd.read_csv(f'{filepath}/{test_file}', sep='\t', header=0, index_col='id')
 
         # Add column specifying language:
         if language == 'english':
@@ -81,11 +81,11 @@ class DataProcessor:
             lang_id = 'es'
         raw_train_df = raw_train_df.assign(language=lang_id)
         raw_val_df = raw_val_df.assign(language=lang_id)
-        # raw_test_df = raw_test_df.assign(language=lang_id)
+        raw_test_df = raw_test_df.assign(language=lang_id)
 
         # Save raw data
-        # self.raw_data = {'train': raw_train_df, 'validation': raw_val_df, 'test': raw_test_df}
-        self.raw_data = {'train': raw_train_df, 'validation': raw_val_df}
+        self.raw_data = {'train': raw_train_df, 'validation': raw_val_df, 'test': raw_test_df}
+        # self.raw_data = {'train': raw_train_df, 'validation': raw_val_df}
 
     def _remove_urls(self, tweet: str) -> str:
         """Removes urls from the text of a particular tweet.
@@ -323,12 +323,12 @@ class DataProcessor:
         # Generate a copy of the raw data to be processed
         raw_train = deepcopy(self.raw_data['train'])
         raw_val = deepcopy(self.raw_data['validation'])
-        # raw_test = deepcopy(self.raw_data['test'])
+        raw_test = deepcopy(self.raw_data['test'])
 
         # Get dataframe of new, processed columns
         processed_train_data = pd.DataFrame()
         processed_val_data = pd.DataFrame()
-        # processed_test_data = pd.DataFrame()
+        processed_test_data = pd.DataFrame()
 
         # Process English data
         if 'en' in raw_train['language'].values:
@@ -351,14 +351,14 @@ class DataProcessor:
             en_processed_val = pd.concat([en_raw_val, en_processed_val], axis=1, join='inner')
             processed_val_data = pd.concat([processed_val_data, en_processed_val], axis=0)
 
-            # # test data
-            # en_raw_test = raw_train[raw_test['language'] == 'en']
-            # en_processed_test = en_raw_test['text'].apply(self.clean_tweet, language='en')
-            # en_test_ind = en_processed_test.index
-            # en_processed_test = pd.concat(en_processed_test.tolist())
-            # en_processed_test.set_index(en_test_ind, inplace=True)
-            # en_processed_test = pd.concat([en_raw_test, en_processed_test], axis=1, join='inner')
-            # processed_test_data = pd.concat([processed_test_data, en_processed_test], axis=0)
+            # test data
+            en_raw_test = raw_test[raw_test['language'] == 'en']
+            en_processed_test = en_raw_test['text'].apply(self.clean_tweet, language='en')
+            en_test_ind = en_processed_test.index
+            en_processed_test = pd.concat(en_processed_test.tolist())
+            en_processed_test.set_index(en_test_ind, inplace=True)
+            en_processed_test = pd.concat([en_raw_test, en_processed_test], axis=1, join='inner')
+            processed_test_data = pd.concat([processed_test_data, en_processed_test], axis=0)
 
         # Process Spanish data
         if 'es' in raw_train['language'].values:
@@ -381,27 +381,23 @@ class DataProcessor:
             es_processed_val = pd.concat([es_raw_val, es_processed_val], axis=1, join='inner')
             processed_val_data = pd.concat([processed_val_data, es_processed_val], axis=0)
 
-            # # test data
-            # es_raw_test = raw_train[raw_test['language'] == 'es']
-            # es_processed_test = es_raw_test['text'].apply(self.clean_tweet, language='es')
-            # es_test_ind = es_processed_test.index
-            # es_processed_test = pd.concat(es_processed_test.tolist())
-            # es_processed_test.set_index(es_test_ind, inplace=True)
-            # es_processed_test = pd.concat([es_raw_test, es_processed_test], axis=1, join='inner')
-            # processed_test_data = pd.concat([processed_test_data, es_processed_test], axis=0)
+            # test data
+            es_raw_test = raw_test[raw_test['language'] == 'es']
+            es_processed_test = es_raw_test['text'].apply(self.clean_tweet, language='es')
+            es_test_ind = es_processed_test.index
+            es_processed_test = pd.concat(es_processed_test.tolist())
+            es_processed_test.set_index(es_test_ind, inplace=True)
+            es_processed_test = pd.concat([es_raw_test, es_processed_test], axis=1, join='inner')
+            processed_test_data = pd.concat([processed_test_data, es_processed_test], axis=0)
 
         # Rename text field so that it's clear it contains the raw, unprocessed text
         processed_train_data.rename({'text': 'raw_text'}, axis=1, inplace=True)
         processed_val_data.rename({'text': 'raw_text'}, axis=1, inplace=True)
-        #processed_test_data.rename({'text': 'raw_text'}, axis=1, inplace=True)
+        processed_test_data.rename({'text': 'raw_text'}, axis=1, inplace=True)
 
-        # self.processed_data = {'train': processed_train_data, 'validation': processed_val_data,
-        #                        'test': processed_test_data}
-        self.processed_data = {'train': processed_train_data, 'validation': processed_val_data}
-
-
-    # TODO: Is there any way to map slang terms and masked-swear words (e.g. f***) to actual word that doesn't involve
-    #  compiling our own dictionary of terms? And/or is there a thesaurus of slang terms so we can use just one form?
+        self.processed_data = {'train': processed_train_data, 'validation': processed_val_data,
+                               'test': processed_test_data}
+        # self.processed_data = {'train': processed_train_data, 'validation': processed_val_data}
 
 
 # Example of how to use the DataProcessor class
