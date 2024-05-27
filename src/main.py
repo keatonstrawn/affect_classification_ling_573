@@ -4,10 +4,10 @@ import re
 import pandas as pd
 import pickle as pkl
 
-from src.data_processor import DataProcessor
-from src.feature_engineering import FeatureEngineering
-from src.classification_model import ClassificationModel
-from src.evaluation import Evaluator
+from data_processor import DataProcessor
+from feature_engineering import FeatureEngineering
+from classification_model import ClassificationModel
+from evaluation import Evaluator
 
 
 def load_config(config_path):
