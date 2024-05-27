@@ -2,17 +2,17 @@
   "document_processing": {
         "input_tsv_files": {
             "filepath": "data",
-            "training": "data/train_en.tsv" ,
-            "devtest": "data/dev_en.tsv" ,
-            "language": "english"
+            "training": "data/train_es.tsv" ,
+            "devtest": "data/dev_es.tsv" ,
+            "language": "spanish"
         },
         "save_or_load": "load",
-        "processed_data_dir": "data/processed_data/D4/english"
+        "processed_data_dir": "data/processed_data/D4/spanish"
   },
   "model": {
         "feature_engineering": {
-            "embedding_path": "data/glove.twitter.27B.25d.txt" ,
-            "embedding_dim": 25,
+            "embedding_path": "data/SBW-vectors-300-min5.txt" ,
+            "embedding_dim": 300,
             "slang_dict_path": "data/SlangSD.txt",
             "span_NRC_path": "data/lexico_nrc.csv",
             "load_translations": "load",
@@ -28,11 +28,9 @@
                 "prediction_target": "together",
                 "keep_training_data": "False" ,
                 "features": ["percent_capitals", "!_count_normalized", "?_count_normalized", "$_count_normalized",
-                  "*_count_normalized", "negative", "positive", "anger", "anticipation", "disgust", "fear", "joy",
-                  "sadness", "surprise", "trust", "negative_ext", "positive_ext", "anger_ext", "anticipation_ext",
-                  "disgust_ext", "fear_ext", "joy_ext", "sadness_ext", "surprise_ext", "trust_ext", "slangscore"] ,
-                "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings",
-                  "BERTweet_embeddings"] ,
+                  "*_count_normalized", "negative_ext", "positive_ext", "anger_ext", "anticipation_ext", "disgust_ext",
+                  "fear_ext", "joy_ext", "sadness_ext", "surprise_ext", "trust_ext", "sent_score"] ,
+                "embedding_features": ["Aggregate_embeddings", "Universal_Sentence_Encoder_embeddings"] ,
                 "model_params": {
                   "random_forest_params": {
                     "n_estimators": 1000, "criterion": "gini", "max_depth": null, "min_samples_split": 0.1,
@@ -58,17 +56,17 @@
   "evaluation": {
           "development": {
             "output_file": "D4_scores.out",
-            "input_directory": "outputs/D4/primary/devtest/",
-            "output_directory": "results/D4/primary/devtest/",
-            "goldpath": "outputs/D4/primary/devtest/ref/",
-            "predpath": "outputs/D4/primary/devtest/res/"
+            "input_directory": "outputs/D4/adaptation/devtest/",
+            "output_directory": "results/D4/adaptation/devtest/",
+            "goldpath": "outputs/D4/adaptation/devtest/ref/",
+            "predpath": "outputs/D4/adaptation/devtest/res/"
           },
           "test": {
             "output_file": "D4_scores.out",
-            "input_directory": "outputs/D4/primary/evaltest/",
-            "output_directory": "results/D4/primary/evaltest/",
-            "goldpath": "outputs/D4/primary/evaltest/ref/",
-            "predpath": "outputs/D4/primary/evaltest/res/"
+            "input_directory": "outputs/D4/adaptation/evaltest/",
+            "output_directory": "results/D4/adaptation/evaltest/",
+            "goldpath": "outputs/D4/adaptation/evaltest/ref/",
+            "predpath": "outputs/D4/adaptation/evaltest/res/"
           }
   }
 }
